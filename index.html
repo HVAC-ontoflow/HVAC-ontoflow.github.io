@@ -112,7 +112,7 @@
           <span class="msg-n">03</span>
           <span class="msg-t">From search to validation</span>
           <span class="msg-d">
-            <span class="ko">문서 간 일치 · 불일치 · 허용오차를 구분하고, 모순을 임의로 지우지 않음</span>
+            <span class="ko">문서 간 일치 · 차이 · 허용오차를 구분하고, 다른 값을 임의로 지우지 않음</span>
             <span class="en">agreement, disagreement and tolerance are told apart — and contradictions are never quietly removed</span>
           </span>
         </li>
@@ -147,7 +147,7 @@
       <span class="cap-q"><span class="ko">믿을 수 있나?</span><span class="en">Can it be trusted?</span></span>
       <p class="cap-t"><span class="ko">정보 신뢰성 검토</span><span class="en">Validate Information</span></p>
       <p class="cap-d">
-        <span class="ko">도면과 계산서를 대조해 교차검증 · 값 불일치 · 허용오차를 구분</span>
+        <span class="ko">도면과 계산서를 대조해 교차검증 · 값 차이 · 허용오차를 구분</span>
         <span class="en">drawings against calculations — cross-validated, divergent, or within tolerance</span>
       </p>
       <span class="cap-go">
@@ -256,8 +256,8 @@
     <div>
       <p class="sec-lede">
         <span class="ko">
-          같은 설계정보가 도면과 계산서에 각각 적혀 있을 때, 두 값이 같은지 다른지, 다르다면 허용오차 안인지 실제 모순인지를 값마다 판정해 기록합니다.<br>
-          <strong>다를 때 시스템이 하나를 고르지 않습니다</strong> — 두 값과 각각의 출처를 그대로 남기고 불일치 자체를 지식으로 보존합니다.
+          같은 설계정보가 도면과 계산서에 각각 적혀 있을 때, 두 값이 같은지 다른지, 다르다면 허용오차 안의 차이인지 확인이 필요한 차이인지를 값마다 판정해 기록합니다.<br>
+          <strong>다를 때 시스템이 하나를 고르지 않습니다</strong> — 어느 쪽도 틀린 값으로 두지 않고, 두 값과 각각의 출처를 그대로 남겨 다르다는 사실 자체를 지식으로 보존합니다.
         </span>
         <span class="en">When the same design figure appears in both a drawing and a calculation sheet,
           each value carries a verdict: do the two agree, and if not, is the gap within tolerance or a real
@@ -356,7 +356,7 @@
         <span class="ko">
           <b>통과하지 못한 한 문항.</b> OHUA03의 난방부하를 묻는 질의였습니다.<br>
           계산서에는 0 W와 98,390 W가 함께 있고 정답은 <b>98,390 W</b>였지만, 에이전트는 두 값이 DIVERGENT로 기록되어 있다는 이유로 어느 쪽도 고르지 않고 판단을 보류했습니다.<br>
-          틀린 값을 고른 것이 아니라, 고를 수 있는 자리에서 지나치게 조심스러웠던 경우입니다 — 모순을 임의로 해소하지 않는다는 원칙이 필요 이상으로 세게 적용된 셈입니다.
+          틀린 값을 고른 것이 아니라, 고를 수 있는 자리에서 지나치게 조심스러웠던 경우입니다 — 다른 값을 임의로 하나로 정하지 않는다는 원칙이 필요 이상으로 세게 적용된 셈입니다.
         </span>
         <span class="en"><b>The one question it did not pass</b> asked for OHUA03's heating load.
           The calculation sheet holds both 0 W and 98,390 W, and <b>98,390 W</b> was the right answer —
@@ -397,7 +397,7 @@
      스크롤이 장면을 넘긴다 — 질문이 뜨고, 더 내리면 정답이 뜬다.
      도시공원 레퍼런스의 sticky 무대 + 스텝 트랙 방식 그대로다.
 
-     챗봇을 만드는 것이 아니다. 말풍선 · 아바타 · 입력창 · '사용자/AI' 표시가
+     챗봇을 만드는 것이 아니다. 말풍선 · 아바타 · 입력창 · 발화자 표시가
      없고, 질의 기록(조회 콘솔)의 형태로 둔다. 질문 문장과 정답은
      레퍼런스/08_질문·정답_카탈로그.md 에서 세 문항을 그대로 옮긴 것이고,
      내용은 js/data.js 의 KB.qa 가 들고 있다.
@@ -418,32 +418,25 @@
 
     <div>
       <p class="sec-lede">
-        <span class="ko">질문 유형별 카탈로그에서 <strong>세 문항</strong>만 뽑았습니다.
-          값에서 문서로 되짚는 질문, 어느 문서에도 없는 지표를 만드는 질문,
-          그리고 <strong>답이 없는 것이 정답인</strong> 질문입니다.<br>
-          아래로 스크롤하면 질문이 뜨고, 조금 더 내리면 그 정답이 뜹니다.</span>
+        <span class="ko">질문 유형별 카탈로그에서 <strong>세 문항</strong>만 뽑았습니다.<br>
+          값에서 문서로 되짚는 질문, 어느 문서에도 없는 지표를 만드는 질문, 그리고 <strong>답이 없는 것이 정답인</strong> 질문입니다.<br>
+          아래로 스크롤하면 질문이 뜨고, 조금 더 내리면 그 정답이 뜹니다.<br>
+          정답은 챗봇 출력이 아니라 사람이 쓴 SPARQL 을 그래프에 직접 돌려 받은 값입니다.</span>
         <span class="en">Three questions out of the catalogue: one that walks a value back to
-          its document, one that builds a metric no document contains, and one whose
-          correct answer is nothing at all. Scroll to reveal each question, then its answer.</span>
+          its document, one that builds a metric no document contains, and one whose correct
+          answer is nothing at all. Scroll to reveal each question, then its answer.
+          These answers come from hand-written SPARQL run directly against the graph, not from
+          a chatbot.</span>
       </p>
 
       <div class="qa-stage" id="qaStage">
         <div class="qa-hud" id="qaHud"></div>
         <div class="qa-cards" id="qaCards"></div>
-        <p class="qa-foot">
-          <span class="ko">정답은 챗봇이 낸 출력이 아닙니다. 사람이 쓴 SPARQL 을
-            그래프에 직접 돌려 받은 값입니다 — 같은 질문에 매번 다른 질의가 지어지면
-            어느 쪽이 틀렸는지 판단할 기준이 없어지기 때문입니다.</span>
-          <span class="en">These answers are not chatbot output. They come from
-            hand-written SPARQL run directly against the graph — otherwise there is no
-            fixed reference against which a differing answer could be judged wrong.</span>
-        </p>
       </div>
       <div class="qa-track" id="qaTrack" aria-hidden="true"></div>
     </div>
   </div>
 </section>
-
 
 <!-- ═══ 06 온톨로지 지도 ═════════════════════════════════════════════
      그래프는 이 연구의 결과물이 표가 아니라 관계로 묶인 지식이라는 것을
@@ -519,16 +512,8 @@
 
       <ol class="flow" id="flowList"></ol>
 
-      <p class="flow-note">
-        <span class="ko">
-          <b>업로드 기능은 이 페이지에 붙어 있지 않습니다.</b> 실제 구축은 위 과정을 거치는 별도 파이프라인에서 87분 28초 · $24.19에 수행되었고, 이 페이지는 그 산출물인 <code>ontology.ttl</code>을 읽어 만든 <b>탐색 화면</b>입니다.<br>
-          동작하지 않는 업로드 버튼을 두어 되는 척하지 않았습니다.
-        </span>
-        <span class="en"><b>There is no upload feature on this page.</b> The actual build ran through the
-          steps above in a separate pipeline — 87 min 28 s at $24.19 — and this page is the
-          <b>exploration surface</b> over its output, <code>ontology.ttl</code>. No inert upload button
-          pretending to work.</span>
-      </p>
+      <!-- 업로드 관련 안내 문단은 뺐다. 이 페이지에 업로드 버튼이 애초에 없으므로
+           "없다"고 따로 밝힐 이유가 없고, 문단이 길어 구축 과정의 끝을 흐렸다. -->
     </div>
   </div>
 </section>
@@ -564,10 +549,9 @@
     </p>
     <p class="note">
       <span class="ko">건물 운영 단계에서의 활용을 위한 설계 및 현장 정보의 지식 자산화 ·
-        대상 건물: 수도권 · 위치 비공개 업무시설 · 화면의 데이터는 ontology.ttl · hvo.ttl · CQ 테스트 자료에서 확인한 값입니다.</span>
+        대상 건물: 수도권 · 위치 비공개 업무시설</span>
       <span class="en">Turning design and field information into a knowledge asset for the building
-        operation stage · Case building: an office facility in the Seoul metropolitan area · All figures shown are taken from
-        ontology.ttl, hvo.ttl and the CQ test document.</span>
+        operation stage · Case building: an office facility in the Seoul metropolitan area</span>
     </p>
   </div>
   <a class="foot-back" href="#top">

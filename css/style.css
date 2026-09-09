@@ -62,8 +62,14 @@
      색만으로 구분되지 않도록 상태마다 기호(= ≠ ≈)를 함께 붙인다. */
   --ok:        #3ddc97;   /* VERIFIED     — 두 자료가 같다        = */
   --ok-soft:   rgba(61, 220, 151, .13);
-  --warn:      #fb923c;   /* DIVERGENT    — 두 자료가 다르다      ≠ */
-  --warn-soft: rgba(251, 146, 60, .14);
+  /* DIVERGENT — 두 자료가 다르다  ≠
+     주황(#fb923c)으로 두었더니 '틀렸다 · 오류'로 읽혔다. 이 상태는 오류가
+     아니다 — 두 문서에 다르게 적혀 있다는 사실이고, 어느 쪽도 틀린 값이
+     아니다. 그래서 경고색을 빼고 차분한 금색으로 내렸다. 초록·청록과는
+     여전히 확실히 갈린다. (토큰 이름은 --warn 그대로 두었다. 세 상태가
+     ok/warn/tol 한 벌로 묶여 있어서, 이름만 바꾸면 오히려 읽기 어려워진다.) */
+  --warn:      #d9ae6a;
+  --warn-soft: rgba(217, 174, 106, .14);
   --tol:       #38bdf8;   /* TOLERANCE_OK — 다르지만 허용오차 내  ≈ */
   --tol-soft:  rgba(56, 189, 248, .13);
   --none:      #8095ad;   /* SINGLE_SOURCE / UNRESOLVED           · */
@@ -1127,8 +1133,10 @@ h2 {
 }
 .beta-h .bh-tag {
   font-family: var(--mono); font-size: 9px; letter-spacing: .12em;
+  /* 테두리를 두른 대문자 칩이 이 화면에서 가장 '오류 표시'처럼 보였다.
+     선을 빼고 옅은 바탕만 남긴다. */
   text-transform: uppercase; color: var(--warn);
-  border: 1px solid var(--warn); border-radius: 2px; padding: 2px 7px;
+  background: var(--warn-soft); border: 0; border-radius: 2px; padding: 3px 8px;
 }
 .beta p { margin: 0; max-width: 78ch; font-size: 13px; line-height: 1.7; color: var(--dim); }
 .beta-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 13px; }
@@ -1288,7 +1296,7 @@ h2 {
   .vh-cq, .claim-doc, .op-note, .gc-t, .fu-l, .bh-t, .cap-go, .cap-n,
   .foot-back, .dist h3, .siblings h3, .q-jump, .excerpt > summary,
   .detail-dl dt, .bldg dt, .graph-cap .gc-t,
-  .qa-lab, .qa-kind, .qa-a-head, .qh-n, .qe-n, .map-dim .md-label
+  .qa-who-t, .qa-tag, .qh-n, .qe-n, .map-dim .md-label
 ) {
   letter-spacing: .02em; text-transform: none;
 }
@@ -1488,7 +1496,10 @@ h2 {
    2) 히어로는 대상이 아니다 — 첫 화면은 포스터 스크린샷으로 쓰이므로
       스크롤 없이 그 자리에서 완성돼 있어야 한다.
    ═══════════════════════════════════════════════════════════════ */
-html.reveal .rv { opacity: 0; transform: translateY(18px); }
+html.reveal .rv { opacity: 0; transform: translateY(16px); }
+/* 반복 항목은 개수가 많아 이동거리를 짧게 둔다 — 같은 거리로 밀면
+   목록 전체가 출렁이는 것처럼 보인다. */
+html.reveal li.rv, html.reveal tr.rv { transform: translateY(10px); }
 html.reveal .rv.in {
   opacity: 1; transform: none;
   /* 감속만 있는 곡선 — 시작이 빠르고 끝이 길어 '올라와 앉는' 느낌이 된다 */
@@ -1557,61 +1568,79 @@ html.reveal .rv.in {
 .qa.on .qa-card.is-on { opacity: 1; transform: none; pointer-events: auto; }
 
 /* ── 질의 ── */
-.qa-kicker {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: .18em;
-  text-transform: uppercase; color: var(--dimmer);
-  padding-bottom: 14px; border-bottom: 1px solid var(--line);
+/* ── 누가 말한 것인지 ──
+   물어본 쪽(사람)과 답한 쪽(온톨로지)이 한눈에 갈라져야 한다. 말풍선 대신
+   두 가지로 나눈다 — 덩어리마다 이름표를 붙이고, 응답만 다른 면 위에 올린다.
+   질문은 페이지 바탕에 큰 글자로, 응답은 --panel 면에 헤어라인을 두르고 앉는다.
+
+   글자 크기는 고정 단계로 둔다. 한때 세로 공간에 맞추려고 min(vw, vh) 로
+   잡았는데, 창 크기를 조금만 바꿔도 질문 크기가 따라 변해서 페이지의 다른
+   글자들과 따로 노는 것처럼 보였다. 크기는 breakpoint 로만 바꾸고, 세로가
+   짧을 때는 글자를 줄이는 대신 여백을 줄인다. */
+.qa-who {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 12px;
 }
-.qa-id { color: var(--accent); }
-.qa-kind {
-  font-family: var(--kr); letter-spacing: .02em; text-transform: none;
-  color: var(--dim);
+.qa-who-t {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--text);
 }
-/* '질의'와 유형 사이의 구분점. 마크업을 늘리지 않고 CSS 로만 세운다. */
-.qa-kind::before {
-  content: "·"; margin-right: 12px; color: var(--line-2);
+.qa-who-s { font-size: 12px; color: var(--dimmer); }
+.qa-tag {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+  color: var(--dim); border: 1px solid var(--line); border-radius: 2px;
+  padding: 3px 9px;
+}
+.qa-tag.is-q { color: var(--accent); border-color: var(--accent-line); }
+
+/* 질문 — 사람이 입력한 문장. 왼쪽 굵은 선 하나로 '들어온 것'을 표시한다.
+   따옴표는 뺐다. 매달아 두면(hanging) 무대의 overflow:hidden 에 왼쪽 것만
+   잘려서 닫는 따옴표 하나만 남고, 글자 크기가 어긋나 보인다. */
+.qa-block--q {
+  border-left: 2px solid var(--accent);
+  padding-left: clamp(14px, 1.4vw, 22px);
 }
 .qa-q {
-  margin: clamp(20px, 2.2vw, 30px) 0 0;
-  max-width: 30ch;
-  font-size: clamp(24px, 3.1vw, 44px); line-height: 1.34;
+  margin: 0;
+  max-width: 34ch;
+  font-size: 33px; line-height: 1.3;
   font-weight: 600; color: var(--text); letter-spacing: -.005em;
 }
-/* 질문은 사람이 던진 문장이다. 따옴표 하나로 그것을 표시하고, 들여쓰기가
-   글자와 어긋나지 않도록 매달아 둔다. */
-.qa-q::before {
-  content: "\201C"; color: var(--accent-line);
-  margin-left: -.55em; padding-right: .1em;
-}
-.qa-q::after { content: "\201D"; color: var(--accent-line); }
+/* 질문 크기는 세 단계뿐이다 — 33 / 27 / 24. 그 사이를 유동적으로 채우면
+   창을 조금 줄일 때마다 크기가 달라져 다른 글자들과 어긋나 보인다. */
+@media (max-width: 1240px) { .qa-q { font-size: 27px; } }
 
-/* ── 정답 ── */
-.qa-a { margin-top: clamp(24px, 2.6vw, 38px); }
+/* 응답 — 온톨로지에서 돌려받은 기록. 다른 면에 앉혀 질문과 갈라 놓는다. */
+.qa-block--a {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+  padding: 14px clamp(14px, 1.4vw, 20px) clamp(14px, 1.5vh, 18px);
+}
+.qa-block--a .qa-who { border-bottom: 1px solid var(--line); }
+.qa-res { padding-top: 14px; }
+
+.qa-a { margin-top: clamp(16px, 2.4vh, 24px); }
 .qa.on .qa-a {
   opacity: 0; transform: translateY(14px);
   transition: opacity .5s ease, transform .5s ease;
 }
 .qa.on .qa-card.is-ans .qa-a { opacity: 1; transform: none; }
 
-.qa-a-head {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em;
-  text-transform: uppercase; color: var(--dimmer);
-  padding-bottom: 12px;
-}
-.qa-a-head b { color: var(--dim); font-weight: 400; }
-
 /* 결과 행 — 표가 아니라 두 열 목록. 왼쪽 문서, 오른쪽 쪽·시트 */
 .qa-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); }
 .qa-rows li {
   display: flex; align-items: baseline; justify-content: space-between; gap: 18px;
-  background: var(--surface); padding: 11px 14px;
+  background: var(--surface); padding: 9px 14px;
 }
-.qa-rows .qr-k { font-family: var(--mono); font-size: 12.5px; color: var(--body); }
+/* 문서명이 길어도 한 줄에 둔다 — 두 줄로 접으면 행 높이가 배가 되어
+   좁은 화면에서 카드가 무대를 넘는다. 넘치는 이름만 줄인다. */
+.qa-rows .qr-k {
+  font-family: var(--mono); font-size: 12.5px; color: var(--body);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .qa-rows .qr-v {
   font-family: var(--mono); font-size: 12.5px; font-weight: 500;
-  color: var(--text); white-space: nowrap;
+  color: var(--text); white-space: nowrap; flex: none;
 }
 .qa-rows li.is-dwg .qr-v { color: var(--accent-deep); }
 /* 행이 하나씩 내려앉는다 — 순서가 보이면 '조회된 결과'로 읽힌다 */
@@ -1627,7 +1656,7 @@ html.reveal .rv.in {
 /* 0행 — 없음이 정답인 문항 */
 .qa-empty {
   display: flex; align-items: center; gap: 14px;
-  padding: 18px 20px;
+  padding: clamp(12px, 2vh, 18px) 20px;
   border: 1px dashed var(--line-2); border-radius: 3px;
   background: var(--panel);
 }
@@ -1643,17 +1672,16 @@ html.reveal .rv.in {
 }
 
 .qa-note {
-  margin: clamp(16px, 1.8vw, 24px) 0 0;
+  margin: clamp(12px, 1.8vh, 20px) 0 0;
   max-width: var(--measure);
-  font-size: 14px; line-height: 1.78; color: var(--body);
-  border-left: 2px solid var(--accent-line); padding-left: 16px;
+  font-size: 13.5px; line-height: 1.72; color: var(--body);
 }
 .qa-note strong { color: var(--text); }
 
 /* ── 진행 표시 ── 무대 위쪽 고정. 지금 몇 번째 장면인지만 알려 준다 ── */
 .qa-hud {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding-bottom: clamp(22px, 2.4vw, 34px);
+  padding-bottom: clamp(12px, 2.4vh, 34px);
 }
 .qa-dots { display: flex; gap: 7px; }
 .qa-dots i {
@@ -1668,25 +1696,31 @@ html.reveal .rv.in {
 .qa.on .qa-hud { display: flex; }
 .qa:not(.on) .qa-hud { display: none; }
 
-/* 무대 아래 고정 — 정답의 출처를 매 장면 같은 자리에서 밝힌다 */
-.qa-foot {
-  margin-top: clamp(22px, 2.4vw, 36px);
-  padding-top: 14px; border-top: 1px solid var(--line);
-  font-size: 12.5px; line-height: 1.7; color: var(--dim);
-  max-width: var(--measure);
-}
-.qa-foot code {
-  font-family: var(--mono); font-size: 11.5px; color: var(--dim);
-}
-.qa:not(.on) .qa-foot { display: none; }
-/* JS 없이 흐르는 판에서는 같은 문장을 섹션 리드에 한 번만 둔다 */
 
 @media (max-width: 900px) {
   .qa.on .qa-stage { top: 0; height: 100vh; }
   @supports (height: 100svh) { .qa.on .qa-stage { height: 100svh; } }
   .qa.on .qa-track { margin-top: -100vh; }
   @supports (height: 100svh) { .qa.on .qa-track { margin-top: -100svh; } }
-  .qa-q { max-width: none; font-size: clamp(21px, 6vw, 30px); }
-  .qa-rows li { flex-direction: column; gap: 4px; }
-  .qa-rows .qr-v { white-space: normal; }
+  .qa-q { max-width: none; font-size: 24px; }
+  .qa-tag { margin-left: 0; }
 }
+
+/* ── 아주 낮은 화면 ──
+   무대는 화면 높이만큼이고 넘치는 것은 잘라 낸다. 세로가 620px 아래로 가면
+   카드가 그 안에 들어가지 않는다(실측: 544px 화면에서 50px 초과).
+
+   글자를 더 줄이거나 결과 행을 감추는 쪽은 택하지 않았다 — 답변의 일부를
+   조용히 지우는 것이 되기 때문이다. 대신 이 높이에서는 스크롤 장면을 끄고
+   JS 가 없을 때와 같은 정적 목록으로 떨어뜨린다. 세 문항이 전부 읽힌다. */
+@media (max-height: 620px) {
+  .qa.on .qa-stage { position: static; height: auto; overflow: visible; }
+  .qa.on .qa-track { display: none; }
+  .qa.on .qa-cards { display: grid; gap: clamp(26px, 3vw, 40px); }
+  .qa.on .qa-card {
+    grid-area: auto; opacity: 1; transform: none; pointer-events: auto;
+  }
+  .qa.on .qa-a { opacity: 1; transform: none; }
+  .qa.on .qa-hud { display: none; }
+}
+
