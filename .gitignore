@@ -1,0 +1,8 @@
+# 서체 원본 캐시 — 2 MB 이고 저장소에 둘 이유가 없다.
+# tools/build_fonts.py 가 필요할 때 다시 받아 온다. 배포되는 것은 fonts/ 의 서브셋이다.
+tools/_fontcache/
+
+# OS 부스러기
+Thumbs.db
+desktop.ini
+.DS_Store

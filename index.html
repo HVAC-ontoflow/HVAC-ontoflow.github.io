@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko" data-lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ONTOFLOW — HVAC Knowledge Platform</title>
+<meta name="description" content="설계도면과 계산서로부터 자동 구축한 HVAC 온톨로지를 탐색하고, 설계값의 계산근거를 추적하며, 도면·계산서 사이 정보의 신뢰성을 검토하는 웹 기반 Knowledge Explorer. 트리플 55,791 · 출처 연결 15,983 · 교차검증 948.">
+<meta property="og:title" content="ONTOFLOW — HVAC Knowledge Platform">
+<meta property="og:description" content="From documents to knowledge · From values to evidence · From search to validation. 55,791 triples built from DWG and PDF design documents.">
+
+<!-- 서체는 이 폴더 안에서만 불러온다 — 외부 요청 0건.
+     원래는 Google Fonts(IBM Plex Mono)와 jsDelivr(Pretendard)에서 받아왔는데,
+     경진대회장 네트워크가 막히면 한글이 시스템 서체로 떨어지고 CDN 쪽이 바뀌면
+     몇 년 뒤에 페이지가 달라 보인다. tools/build_fonts.py 가 fonts/ 를 만든다
+     (Pretendard 는 이 페이지가 쓰는 글자만 남긴 134 KB 서브셋). -->
+<link rel="stylesheet" href="fonts/fonts.css">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a class="skip" href="#main"><span class="ko">본문으로 건너뛰기</span><span class="en">Skip to content</span></a>
+
+<!-- ═══ 상단 바 ═══════════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="topbar-in shell">
+    <a class="brand" href="#top">
+      <span class="brand-mark">ONTOFLOW</span>
+      <span class="brand-sub">HVAC Knowledge Platform</span>
+    </a>
+
+    <nav class="nav" aria-label="섹션">
+      <a href="#overview"><span class="ko">개요</span><span class="en">Overview</span></a>
+      <a href="#evidence"><span class="ko">근거 추적</span><span class="en">Evidence</span></a>
+      <a href="#validation"><span class="ko">정보 검증</span><span class="en">Validation</span></a>
+      <a href="#explorer"><span class="ko">HVAC 설비</span><span class="en">HVAC</span></a>
+      <a href="#query"><span class="ko">지식 질의</span><span class="en">Query</span></a>
+      <a href="#map"><span class="ko">온톨로지 지도</span><span class="en">Ontology map</span></a>
+      <a href="#build"><span class="ko">구축 과정</span><span class="en">Construction</span></a>
+    </nav>
+
+    <button class="lang-toggle" id="langToggle" type="button">
+      <span class="ko">EN</span><span class="en">한국어</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ═══ 히어로 ═══════════════════════════════════════════════════════
+     이 화면 하나가 포스터에 들어간다. 스크롤 없이 다섯 가지가 보여야 한다.
+     ① 무엇을 만들었는가  ② 지식베이스가 실제로 있는가
+     ③ HVAC 설비 탐색  ④ 근거 추적  ⑤ 정보 검증
+     ══════════════════════════════════════════════════════════════ -->
+<section class="hero shell" id="top">
+
+  <!-- 배경 — ontology.ttl 에서 뽑은 실제 부분 그래프. 장식이지만 지어낸 그림은 아니다.
+       글자 가독성은 CSS 의 .hero-bg::after 스크림이 지킨다. -->
+  <div class="hero-bg" aria-hidden="true"><canvas id="heroGraph"></canvas></div>
+
+  <div class="hero-grid">
+
+    <div>
+      <p class="kicker">
+        <span class="ko">온톨로지 기반 건물 지식 탐색</span>
+        <span class="en">Ontology-based Building Knowledge Explorer</span>
+      </p>
+
+      <h1>
+        <span class="ko">HVAC Knowledge Platform</span>
+        <span class="en">HVAC Knowledge Platform</span>
+      </h1>
+
+      <p class="h1-sub">
+        <span class="ko">설계도면 · 계산서 → 온톨로지 → 탐색 · 근거 추적 · 정보 검증</span>
+        <span class="en">Drawings &amp; calculations → ontology → explore · trace · validate</span>
+      </p>
+
+      <p class="lede">
+        <span class="ko">
+          설계도면과 계산서에 흩어져 있던 HVAC 설계정보를 <strong>출처와 계산근거를 유지한 채</strong> 온톨로지로 구조화했습니다.<br>
+          이 페이지에서 HVAC 설비를 탐색하고, 설계값이 왜 그 값인지 거슬러 올라가고, 도면과 계산서가 어디까지 일치하는지 확인할 수 있습니다.
+        </span>
+        <span class="en">HVAC design information scattered across drawings and calculation sheets has been
+          restructured into an ontology <strong>with its provenance and calculation basis intact</strong>.
+          This page lets you explore the equipment, walk back up the evidence behind a design value, and see
+          how far the drawings and the calculations agree.</span>
+      </p>
+
+      <!-- 연구가 무엇을 바꿨는지 세 줄 -->
+      <ol class="msgs">
+        <li>
+          <span class="msg-n">01</span>
+          <span class="msg-t">From documents to knowledge</span>
+          <span class="msg-d">
+            <span class="ko">DWG · PDF 설계문서를 개체 · 값 · 관계 · 출처가 연결된 지식베이스로 변환</span>
+            <span class="en">DWG and PDF design documents become a knowledge base of linked individuals, values, relations and sources</span>
+          </span>
+        </li>
+        <li>
+          <span class="msg-n">02</span>
+          <span class="msg-t">From values to evidence</span>
+          <span class="msg-d">
+            <span class="ko">값을 찾는 데서 멈추지 않고 계산식 · 설계조건 · 원문 쪽수까지 추적</span>
+            <span class="en">not just the value, but the formula, the design conditions and the page it came from</span>
+          </span>
+        </li>
+        <li>
+          <span class="msg-n">03</span>
+          <span class="msg-t">From search to validation</span>
+          <span class="msg-d">
+            <span class="ko">문서 간 일치 · 불일치 · 허용오차를 구분하고, 모순을 임의로 지우지 않음</span>
+            <span class="en">agreement, disagreement and tolerance are told apart — and contradictions are never quietly removed</span>
+          </span>
+        </li>
+      </ol>
+    </div>
+
+    <!-- 실제 ZHUA01 데이터로 만든 미리보기. app.js 가 KB.evidence 로 채운다. -->
+    <div class="preview" id="heroPreview" aria-label="근거 사슬 미리보기"></div>
+
+  </div>
+
+  <!-- 규모 지표 -->
+  <div class="kpi" id="kpiStrip" aria-label="지식베이스 구축 규모"></div>
+
+  <!-- 기능 세 장 — 중요도 순서대로 근거추적 · 정보검증 · 장비탐색 -->
+  <div class="caps">
+    <a class="cap" href="#evidence">
+      <span class="cap-n">01</span>
+      <span class="cap-q"><span class="ko">왜 이 값인가?</span><span class="en">Why this value?</span></span>
+      <p class="cap-t"><span class="ko">설계근거 추적</span><span class="en">Trace Design Evidence</span></p>
+      <p class="cap-d">
+        <span class="ko">설계값 → 선정근거 → 계산식 → 설계조건 → 원문 쪽수까지 이어지는 근거 사슬</span>
+        <span class="en">the chain from a design value back through its basis, formula, conditions and source page</span>
+      </p>
+      <span class="cap-go">
+        <span class="ko">7,300 CMH의 근거 보기</span><span class="en">See what stands behind 7,300 CMH</span>
+      </span>
+    </a>
+
+    <a class="cap" href="#validation">
+      <span class="cap-n">02</span>
+      <span class="cap-q"><span class="ko">믿을 수 있나?</span><span class="en">Can it be trusted?</span></span>
+      <p class="cap-t"><span class="ko">정보 신뢰성 검토</span><span class="en">Validate Information</span></p>
+      <p class="cap-d">
+        <span class="ko">도면과 계산서를 대조해 교차검증 · 값 불일치 · 허용오차를 구분</span>
+        <span class="en">drawings against calculations — cross-validated, divergent, or within tolerance</span>
+      </p>
+      <span class="cap-go">
+        <span class="ko">2.2 kW와 3.0 kW 사례 보기</span><span class="en">See the 2.2 kW vs 3.0 kW case</span>
+      </span>
+    </a>
+
+    <a class="cap" href="#explorer">
+      <span class="cap-n">03</span>
+      <span class="cap-q"><span class="ko">무엇인가?</span><span class="en">What is it?</span></span>
+      <p class="cap-t"><span class="ko">HVAC 설비 · 공간 탐색</span><span class="en">Explore HVAC</span></p>
+      <p class="cap-d">
+        <span class="ko">HVAC 설비 한 대의 사양 · 설치위치 · 담당 Zone · 부품 · 출처를 한 화면에</span>
+        <span class="en">one unit’s specifications, location, zone, parts and sources on a single screen</span>
+      </p>
+      <span class="cap-go">
+        <span class="ko">ZHUA01 프로필 보기</span><span class="en">Open the ZHUA01 profile</span>
+      </span>
+    </a>
+  </div>
+</section>
+
+
+<!-- ═══ 개요 — 이 지식베이스는 무엇으로 만들어졌는가 ═════════════════ -->
+<section class="sec" id="overview">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">00</span>
+      <h2><span class="ko">개요</span><span class="en">Overview</span></h2>
+      <span class="sec-q"><span class="ko">무엇으로 만들었는가</span><span class="en">What it was built from</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          수도권 복합단지 내 업무시설의 기계 도면(DWG)과 설비 계산서(PDF)를 입력으로, <strong>지상 2층 · 공기측</strong>을 범위로 온톨로지를 자동 생성했습니다.<br>
+          스키마(TBox)는 Brick 1.4.1을 어휘로 재사용하고, 근거 · 출처 · 값의 층위에 관한 문법은 자체 정의했습니다.
+        </span>
+        <span class="en">The ontology was generated automatically from the mechanical drawings (DWG) and
+          equipment calculation sheets (PDF) of an office building in a mixed-use complex in the Seoul metropolitan area,
+          scoped to <strong>the second floor, air side</strong>. The schema reuses Brick 1.4.1 as a
+          vocabulary; the grammar for evidence, provenance and value layering is defined in-house.</span>
+      </p>
+
+      <dl class="bldg" id="bldgFacts"></dl>
+
+      <ul class="docs" id="docList" aria-label="원본 설계문서"></ul>
+
+      <dl class="detail-dl" id="detailFacts"></dl>
+
+      <p class="flow-note">
+        <span class="ko">
+          <b>이 페이지의 모든 수치와 문자열은 실제 자료에서 가져온 것입니다.</b> HVAC 설비 · 값 · 관계 · 출처는 <code>ontology.ttl</code>(ABox), 클래스와 관계 술어는 <code>hvo.ttl</code>(TBox), 질의와 검증된 답변은 CQ 테스트 자료, 구축 규모는 경진대회 포스터에서 확인했습니다.<br>
+          화면을 채우기 위해 만들어낸 HVAC 설비나 값은 없습니다.
+        </span>
+        <span class="en"><b>Every figure and string on this page comes from the actual material.</b>
+          Equipment, values, relations and sources from <code>ontology.ttl</code> (ABox); classes and
+          relation predicates from <code>hvo.ttl</code> (TBox); questions and verified answers from the CQ
+          test document; build statistics from the competition poster. Nothing was invented to fill a panel.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 01 근거 추적 ═════════════════════════════════════════════════
+     이 연구의 차별점이 가장 잘 드러나는 자리. 그래서 첫 섹션이다.
+     ══════════════════════════════════════════════════════════════ -->
+<section class="sec" id="evidence">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">01</span>
+      <h2><span class="ko">근거 추적</span><span class="en">Evidence Trace</span></h2>
+      <span class="sec-q"><span class="ko">왜 이 값인가?</span><span class="en">Why this value?</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          단순 검색이라면 "7,300 CMH"에서 끝납니다.<br>
+          이 온톨로지는 그 값에 <strong>선정근거 → 계산식 → 설계조건 → 원문 쪽수</strong>가 관계로 매달려 있어, 값에서 출처까지 거슬러 올라갈 수 있습니다.<br>
+          아래 관계 이름은 모두 TBox에 정의된 실제 술어입니다.
+        </span>
+        <span class="en">A plain search stops at "7,300 CMH". Here the value carries its
+          <strong>design basis → calculation step → design conditions → source page</strong> as
+          relations, so you can walk from the number back to the document it came from. Every relation
+          name below is an actual predicate defined in the TBox.</span>
+      </p>
+
+      <div class="trace-tabs" id="traceTabs" role="tablist" aria-label="근거 사슬 선택"></div>
+      <div id="tracePanel"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 02 정보 검증 ═════════════════════════════════════════════════ -->
+<section class="sec" id="validation">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">02</span>
+      <h2><span class="ko">정보 검증</span><span class="en">Validation</span></h2>
+      <span class="sec-q"><span class="ko">믿을 수 있나?</span><span class="en">Can it be trusted?</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          같은 설계정보가 도면과 계산서에 각각 적혀 있을 때, 두 값이 같은지 다른지, 다르다면 허용오차 안인지 실제 모순인지를 값마다 판정해 기록합니다.<br>
+          <strong>다를 때 시스템이 하나를 고르지 않습니다</strong> — 두 값과 각각의 출처를 그대로 남기고 불일치 자체를 지식으로 보존합니다.
+        </span>
+        <span class="en">When the same design figure appears in both a drawing and a calculation sheet,
+          each value carries a verdict: do the two agree, and if not, is the gap within tolerance or a real
+          conflict? <strong>Where they differ the system does not pick a winner</strong> — both values keep
+          their own sources, and the disagreement itself is preserved as knowledge.</span>
+      </p>
+
+      <div id="vcases"></div>
+
+      <!-- 4,081개 값 노드 전수의 상태 분포 -->
+      <div class="dist" id="dist">
+        <h3><span class="ko">값 노드 4,081개 전수의 검증 상태</span><span class="en">Verdicts across all 4,081 value nodes</span></h3>
+        <p class="dist-note">
+          <span class="ko">
+            ontology.ttl 의 hvo:valueStatus 전수 집계.<br>
+            다섯 상태의 합이 값 노드 총수와 정확히 일치합니다.
+          </span>
+          <span class="en">Full count of hvo:valueStatus in ontology.ttl. The five states sum exactly to the total number of value nodes.</span>
+        </p>
+        <ul id="distList"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 03 장비 탐색 ═════════════════════════════════════════════════ -->
+<section class="sec" id="explorer">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">03</span>
+      <h2><span class="ko">HVAC 설비 탐색</span><span class="en">HVAC</span></h2>
+      <span class="sec-q"><span class="ko">무엇이 있는가?</span><span class="en">What is there?</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          HVAC 설비 한 대를 고르면 사양 · 설치위치 · 담당 Zone · 부품 · 출처가 한 화면에 모입니다.<br>
+          값마다 검증 상태가 붙어 있고, 값이 둘 이상이면 둘 다 보입니다.<br>
+          아래 그래프는 고른 HVAC 설비의 <strong>1-hop 관계</strong>만 그립니다.<br>
+          이 화면에는 대표 HVAC 설비 <strong>3대(ZHUA01 · ZHUA02 · OHUA03)</strong>만 실었습니다.
+        </span>
+        <span class="en">Pick a unit and its specifications, location, served zone, parts and sources gather on
+          one screen. Every value carries its verdict, and where two values exist both are shown. The graph
+  below draws only the selected unit’s <strong>1-hop relations</strong>. This screen carries
+          <strong>three</strong> representative HVAC units — ZHUA01, ZHUA02 and OHUA03.</span>
+      </p>
+
+      <div class="explorer">
+        <div>
+          <p class="eq-list-head"><span class="ko">HVAC 설비</span><span class="en">HVAC</span></p>
+          <div id="eqList" role="tablist" aria-orientation="vertical" aria-label="HVAC 설비 목록"></div>
+        </div>
+        <div class="eq-panel" id="eqPanel"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 04 지식 질의 ═════════════════════════════════════════════════
+     대화창이 아니다. 검증된 CQ 목록에서 질문을 고르면
+     질문 → 결과 → 근거 → 출처 → 상태 다섯 칸이 채워진다.
+     ══════════════════════════════════════════════════════════════ -->
+<section class="sec" id="query">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">04</span>
+      <h2><span class="ko">지식 질의</span><span class="en">Knowledge Query</span></h2>
+      <span class="sec-q"><span class="ko">검증된 CQ 10문항</span><span class="en">10 validated CQs</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          CQ 테스트에서 검증된 질의와 그 답변입니다.<br>
+          답변마다 어떤 트리플에서 나왔고 어느 문서를 가리키는지가 함께 표시되므로, <strong>답을 믿는 대신 근거를 확인</strong>할 수 있습니다.<br>
+          전체 <strong>58문항 중 57문항이 통과(98.3%)</strong>했고, 그 가운데 이 연구의 성격을 가장 잘 보여주는 10문항을 실었습니다.
+        </span>
+        <span class="en">These are the queries and answers verified in the CQ test. Each answer shows which
+          triples it came from and which document it points at, so you can <strong>check the evidence rather
+          than trust the answer</strong>. <strong>57 of the 58 questions passed (98.3%)</strong>;
+          the ten shown here are the ones that best characterise the work.</span>
+      </p>
+
+      <div class="query">
+        <div class="q-side">
+          <p class="q-side-head"><span class="ko">검증된 질의</span><span class="en">Validated queries</span></p>
+          <div id="qList"></div>
+        </div>
+        <div class="q-main" id="qPanel"></div>
+      </div>
+
+      <p class="flow-note">
+        <span class="ko">
+          <b>통과하지 못한 한 문항.</b> OHUA03의 난방부하를 묻는 질의였습니다.<br>
+          계산서에는 0 W와 98,390 W가 함께 있고 정답은 <b>98,390 W</b>였지만, 에이전트는 두 값이 DIVERGENT로 기록되어 있다는 이유로 어느 쪽도 고르지 않고 판단을 보류했습니다.<br>
+          틀린 값을 고른 것이 아니라, 고를 수 있는 자리에서 지나치게 조심스러웠던 경우입니다 — 모순을 임의로 해소하지 않는다는 원칙이 필요 이상으로 세게 적용된 셈입니다.
+        </span>
+        <span class="en"><b>The one question it did not pass</b> asked for OHUA03's heating load.
+          The calculation sheet holds both 0 W and 98,390 W, and <b>98,390 W</b> was the right answer —
+          but because the two are recorded as DIVERGENT, the agent picked neither and withheld its
+          verdict. It did not choose a wrong value; it was over-cautious where a choice was available,
+          applying the never-resolve-a-contradiction rule harder than the case required.</span>
+      </p>
+
+      <!-- 자유질의는 작게. 시연 안정성이 우선이므로 검증된 CQ 가 주인이다. -->
+      <div class="beta">
+        <div class="beta-h">
+          <span class="bh-t"><span class="ko">자유 질의</span><span class="en">Free-form query</span></span>
+          <span class="bh-tag">beta</span>
+        </div>
+        <p>
+          <span class="ko">
+            이 페이지는 시연 안정성을 위해 <b>검증된 CQ 결과</b>를 정적 데이터로 제공합니다.<br>
+            자유 질의는 위 10문항의 키워드(예: ZHUA01, 모터동력, 7300, 6201, OHUA03)를 찾아 해당 CQ로 이동시키는 정도만 동작합니다.<br>
+            임의의 자연어 질문에 답하는 추론은 이 페이지에 연결되어 있지 않습니다.
+          </span>
+          <span class="en">For demo stability this page serves the <b>verified CQ results</b> as static data.
+            The free-form box only matches keywords from the ten questions above (e.g. ZHUA01, motor power,
+            7300, 6201, OHUA03) and jumps to the matching CQ. No live reasoning over arbitrary natural
+            language is wired into this page.</span>
+        </p>
+        <form class="beta-form" id="betaForm" autocomplete="off">
+          <input type="text" id="betaInput" aria-label="질의어"
+                 placeholder="ZHUA01 모터동력 / 7300 / 6201 / OHUA03 …">
+          <button type="submit"><span class="ko">찾기</span><span class="en">Find</span></button>
+        </form>
+        <p class="beta-out" id="betaOut" hidden></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 05 온톨로지 지도 ═════════════════════════════════════════════
+     그래프는 이 연구의 결과물이 표가 아니라 관계로 묶인 지식이라는 것을
+     한눈에 보이는 자리다. 메인 기능이 아니라 그 사실의 증거로 둔다.
+     ══════════════════════════════════════════════════════════════ -->
+<section class="sec" id="map">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">05</span>
+      <h2><span class="ko">온톨로지 지도</span><span class="en">Ontology Map</span></h2>
+      <span class="sec-q"><span class="ko">어떻게 연결되어 있나</span><span class="en">How it is connected</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          <code>ontology.ttl</code>에서 실제로 뽑아낸 부분 그래프입니다.<br>
+          HVAC 설비 47대를 씨앗으로 <code>hasPart</code> · <code>serves</code> · <code>hasQuantityValue</code> · <code>selectedBy</code> · <code>derivedFrom</code> · <code>basedOn</code> · <code>sourcedFrom</code>을 따라가며 모았습니다.<br>
+          <strong>노드에 커서를 올리면 그 개체가 무엇이고 어떤 관계로 무엇에 매달려 있는지</strong> 아래에 표시됩니다.<br>
+          가운데 고리가 HVAC 설비, 테두리가 출처이고, 값 노드는 검증 상태에 따라 색이 다릅니다.
+        </span>
+        <span class="en">A real subgraph pulled from <code>ontology.ttl</code>. Starting from 47 pieces of
+          equipment it follows <code>hasPart</code>, <code>serves</code>,
+          <code>hasQuantityValue</code>, <code>selectedBy</code>, <code>derivedFrom</code>,
+          <code>basedOn</code> and <code>sourcedFrom</code>.
+          <strong>Hover a node to see what the individual is and which relations hold it</strong> —
+          read out below. The inner ring is equipment and the rim is source documents; value nodes are
+          coloured by their verdict.</span>
+      </p>
+
+      <div class="map-wrap">
+        <!-- 캔버스와 그 위에 얹히는 라벨은 따로 감싼다. 그러지 않으면
+             bottom 으로 앉힌 힌트가 아래 판독 영역 위로 올라앉는다. -->
+        <div class="map-stage">
+          <canvas class="map-canvas" id="mapGraph"
+                  aria-label="온톨로지 부분 그래프 — 노드에 커서를 올리면 아래에 개체 정보가 표시됩니다"></canvas>
+          <p class="map-count" id="mapCount"></p>
+          <p class="map-hint" id="mapHint"></p>
+        </div>
+        <div class="map-read" id="mapRead"></div>
+      </div>
+
+      <ul class="map-legend" id="mapLegend"></ul>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 06 구축 과정 ═════════════════════════════════════════════════
+     포스터가 L1~L5 를 이미 자세히 설명하므로 여기서는 압축한다.
+     ══════════════════════════════════════════════════════════════ -->
+<section class="sec" id="build">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">06</span>
+      <h2><span class="ko">구축 과정</span><span class="en">Construction</span></h2>
+      <span class="sec-q"><span class="ko">문서를 어떻게 지식으로 바꾸는가</span><span class="en">Documents into knowledge</span></span>
+    </div>
+
+    <div>
+      <p class="sec-lede">
+        <span class="ko">
+          DXF · DWG · PDF를 입력받아 온톨로지를 자동 생성합니다.<br>
+          아래는 그 과정을 웹에서 읽을 수 있는 수준으로 압축한 것이고, 레이어 구분과 알고리즘 상세는 포스터 3. 온톨로지 자동생성 기술개발에 있습니다.<br>
+          <strong>이 페이지는 그 결과물을 쓰는 마지막 단계</strong>를 보여줍니다.
+        </span>
+        <span class="en">DXF, DWG and PDF go in and the ontology is generated automatically. What follows is
+          that process compressed to what a web reader needs; the layer breakdown and the algorithms are set
+          out in the poster under 3. Automated ontology generation.
+          <strong>This page is the last step — putting the result to use.</strong></span>
+      </p>
+
+      <ol class="flow" id="flowList"></ol>
+
+      <p class="flow-note">
+        <span class="ko">
+          <b>업로드 기능은 이 페이지에 붙어 있지 않습니다.</b> 실제 구축은 위 과정을 거치는 별도 파이프라인에서 87분 28초 · $24.19에 수행되었고, 이 페이지는 그 산출물인 <code>ontology.ttl</code>을 읽어 만든 <b>탐색 화면</b>입니다.<br>
+          동작하지 않는 업로드 버튼을 두어 되는 척하지 않았습니다.
+        </span>
+        <span class="en"><b>There is no upload feature on this page.</b> The actual build ran through the
+          steps above in a separate pipeline — 87 min 28 s at $24.19 — and this page is the
+          <b>exploration surface</b> over its output, <code>ontology.ttl</code>. No inert upload button
+          pretending to work.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ 향후 ════════════════════════════════════════════════════════ -->
+<section class="sec sec--ruled" id="future">
+  <div class="sec-in shell">
+    <div class="sec-label">
+      <span class="sec-no">07</span>
+      <h2><span class="ko">향후</span><span class="en">Next</span></h2>
+    </div>
+    <div>
+      <p class="sec-lede">
+        <span class="ko">HVAC 중심 온톨로지에서 <strong>건물 전 분야 통합 온톨로지</strong>로.</span>
+        <span class="en">From an HVAC-centred ontology to an <strong>integrated, all-discipline building ontology</strong>.</span>
+      </p>
+      <ul class="future" id="futureList"></ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot shell">
+  <div>
+    <p class="made">
+      <span class="ko"><strong>성균관대학교 건설환경공학부</strong> · 2026년 제14회 HVAC 경진대회 ·
+        지도교수 윤성민 · 참여학생 김건우 · 류채원 · 이유진 · 장병준 · 최윤서</span>
+      <span class="en"><strong>School of Civil, Architectural Engineering and Landscape Architecture,
+        Sungkyunkwan University</strong> · 14th HVAC Competition 2026 · Advisor Sungmin Yoon ·
+        Geonwoo Kim · Chaewon Ryu · Yujin Lee · Byeongjun Jang · Yunseo Choi</span>
+    </p>
+    <p class="note">
+      <span class="ko">건물 운영 단계에서의 활용을 위한 설계 및 현장 정보의 지식 자산화 ·
+        대상 건물: 수도권 · 위치 비공개 업무시설 · 화면의 데이터는 ontology.ttl · hvo.ttl · CQ 테스트 자료에서 확인한 값입니다.</span>
+      <span class="en">Turning design and field information into a knowledge asset for the building
+        operation stage · Case building: an office facility in the Seoul metropolitan area · All figures shown are taken from
+        ontology.ttl, hvo.ttl and the CQ test document.</span>
+    </p>
+  </div>
+  <a class="foot-back" href="#top">
+    <span class="ko">↑ 처음으로</span><span class="en">↑ Back to top</span>
+  </a>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/graph-data.js"></script>
+<script src="js/graph.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
