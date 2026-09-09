@@ -1052,7 +1052,7 @@
             '<div class="qa-who">' +
               '<span class="qa-who-t">' + (L ? '질문' : 'Question') + '</span>' +
               '<span class="qa-who-s">' + (L ? '사람이 입력한 문장' : 'typed by a person') + '</span>' +
-              '<span class="qa-tag">' + esc(item.id) + ' · ' + esc(t(item.kind)) + '</span>' +
+              '<span class="qa-tag">' + esc(t(item.kind)) + '</span>' +
             '</div>' +
             '<p class="qa-q">' + esc(t(item.q)) + '</p>' +
           '</div>' +
@@ -1239,6 +1239,45 @@
 
     targets.forEach(function (n) { io.observe(n); });
 
+    /* ── 파트 전환 ──
+       레퍼런스(도시공원)의 움직임이 살아 있는 이유는 곡선이 아니라 '무엇이
+       움직임을 몰고 있는가'다. 저쪽은 스크롤 위치가 그대로 장면을 정한다 —
+       스크롤을 멈추면 움직임도 멈추고, 되감으면 되감긴다.
+
+       처음에 여기서는 CSS 전환 한 번으로 처리했다. 그러면 섹션이 화면에 들어온
+       순간 0.7초간 재생되고 끝나서, 스크롤을 아무리 천천히 해도 '넘어간다'는
+       감각이 생기지 않는다. 그래서 --enter 를 스크롤에서 계산해 넣고, CSS 는
+       그 값을 위치와 불투명도로 옮기기만 한다.
+
+       움직이는 것은 본문 칸뿐이다. 섹션 제목(.sec-label)은 sticky 로 붙어 있는
+       쪽이라 건드리지 않는다 — 제목은 머물고 내용이 올라오는 것이 레퍼런스에서
+       무대가 머물고 층이 바뀌는 구조와 같다. transform 을 sticky 의 조상에
+       걸면 붙어 있는 성질이 깨지므로, 그 점에서도 본문 칸만 잡는 편이 안전하다. */
+    var cols = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.sec'), function (sec) {
+      /* 질의응답은 그 자체가 sticky 무대를 갖고 있다. 여기까지 움직이면
+         무대가 두 번 움직여 흔들린다. */
+      if (sec.id === 'qa') return;
+      var inn = sec.querySelector('.sec-in');
+      if (!inn) return;
+      Array.prototype.forEach.call(inn.children, function (col) {
+        if (!col.classList.contains('sec-label')) cols.push(col);
+      });
+    });
+
+    function parts() {
+      var vh = window.innerHeight || 800;
+      for (var i = 0; i < cols.length; i++) {
+        var r = cols[i].getBoundingClientRect();
+        /* 아래 88% 지점에 닿을 때 시작해서 38% 지점에서 제자리에 앉는다.
+           화면 절반을 지나는 동안 움직이므로 스크롤과 눈이 같이 간다. */
+        var e = (vh * 0.88 - r.top) / (vh * 0.50);
+        if (r.top < 0) e = 1;                  /* 이미 지나간 것은 붙잡지 않는다 */
+        e = e < 0 ? 0 : e > 1 ? 1 : e;
+        cols[i].style.setProperty('--enter', e.toFixed(3));
+      }
+    }
+
     /* ── 스크롤 진행 띠 ──
        파트가 많고 페이지가 길어서, 지금 어디쯤인지가 보이면 '넘어가는' 감각이
        생긴다. 요소를 하나 만들어 붙이는 쪽을 택했다 — 마크업에 두면 스크립트가
@@ -1257,10 +1296,16 @@
     window.addEventListener('scroll', function () {
       if (qb) return;
       qb = true;
-      window.requestAnimationFrame(function () { qb = false; progress(); });
+      window.requestAnimationFrame(function () { qb = false; progress(); parts(); });
     }, { passive: true });
-    window.addEventListener('resize', progress);
+    window.addEventListener('resize', function () { progress(); parts(); });
     progress();
+    parts();
+
+    /* 본문 칸이 스크롤에 반응한다는 표시. 이 클래스가 붙기 전에는 CSS 가
+       --enter 를 보지 않으므로, 스크립트가 여기까지 오지 못하면 아무것도
+       숨거나 밀리지 않는다. */
+    root.classList.add('parts');
 
     /* ── 안전망 ──
        IntersectionObserver 의 콜백은 '렌더 갱신 뒤'에 온다. 브라우저가
