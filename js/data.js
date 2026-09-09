@@ -639,3 +639,55 @@ KB.future = [
     text:  { ko: '한 분야의 변경이 타 분야에 영향을 주는지 즉시 추적 가능',
              en: 'a change in one discipline can be traced immediately into the others' } }
 ];
+
+/* ── 질의응답 장면 ── §05 스크롤 스토리 ─────────────────────────
+   출처: 레퍼런스/08_질문·정답_카탈로그.md (2026-09-04 추출) 에서 세 문항만 뽑았다.
+   질문 문장과 정답은 그 문서에 적힌 것을 그대로 옮겼고, 문서명·도면 시트 번호만
+   가명(README "가명화" 표)으로 바꿨다.
+
+   세 문항을 고른 이유는 서로 다른 능력을 하나씩 보여주기 때문이다.
+     E1  근거추적 — 값에서 문서와 쪽으로 되짚는다
+     X10 파생계산 — 두 값을 이어 어느 문서에도 없는 지표를 만든다
+     R2  거부     — 없는 것은 없다고 답한다 (0행이 정답)
+
+   정답은 챗봇 출력이 아니다. 사람이 쓴 SPARQL 을 그래프에 직접 돌려 받은 값이다.
+   챗봇은 같은 질문에 매번 조금 다른 질의를 짓기 때문에, 그 출력을 정답으로 적으면
+   다음에 다르게 답했을 때 어느 쪽이 틀렸는지 판단할 기준이 사라진다. */
+KB.qa = [
+  { id: 'E1', kind: { ko: '근거 추적', en: 'Evidence trace' },
+    q: { ko: 'ZHUA01 풍량은 어느 문서 몇 쪽에서 나온 거야',
+         en: 'Which document and page does the ZHUA01 air flow come from?' },
+    /* 8행 중 카탈로그에 적힌 6행. 나머지 2행은 그 문서에도 생략되어 있어 적지 않는다. */
+    rows: [
+      { k: '설비계산서-A.pdf',        v: 'p.252' },
+      { k: '설비계산서-A.pdf',        v: 'p.253' },
+      { k: '장비일람표-A (업무).dwg', v: 'SCH-A03', dwg: true },
+      { k: '설비계산서-A.pdf',        v: 'p.205' },
+      { k: '설비계산서-A.pdf',        v: 'p.228' },
+      { k: '설비계산서-A.pdf',        v: 'p.538' }
+    ],
+    more: { ko: '… 총 8행', en: '… 8 rows in total' },
+    note: { ko: '한 값의 출처로 도면과 계산서가 함께 나옵니다. 값을 찾은 것이 아니라 값이 선 자리를 찾은 것입니다.',
+            en: 'A single value cites both the drawing and the calculation sheet — the query returns where the value stands, not just the value.' },
+    trace: true },
+
+  { id: 'X10', kind: { ko: '파생 계산', en: 'Derived metric' },
+    q: { ko: '풍량 대비 냉방부하 밀도 알려줘',
+         en: 'What is the cooling load density per unit air flow?' },
+    rows: [
+      { k: 'OHUA03',   v: '11.7 W/CMH' },
+      { k: 'OHUC01',   v: '11.7 W/CMH' },
+      { k: 'ZHUA02:A', v: '4.9 W/CMH' },
+      { k: 'ZHUC02:C', v: '4.7 W/CMH' },
+      { k: 'ZHUC04:C', v: '4.7 W/CMH' }
+    ],
+    note: { ko: '이 숫자는 어느 문서에도 적혀 있지 않습니다. 풍량과 냉방부하가 한 그래프에 있으니 두 값을 이어 만든 지표입니다.',
+            en: 'This number appears in no document. Air flow and cooling load sit in the same graph, so the metric is derived by joining them.' } },
+
+  { id: 'R2', kind: { ko: '거부', en: 'Refusal' },
+    q: { ko: '지금 ZHUA01이 몇 도로 돌고 있어',
+         en: 'What temperature is ZHUA01 running at right now?' },
+    empty: { ko: '해당 정보 없음', en: 'No such information' },
+    note: { ko: '답이 없는 것이 정답입니다. 이 온톨로지에는 실시간 운전데이터가 없고 설계값만 있습니다. 없는 값을 지어내지 않는지 보는 문항입니다.',
+            en: 'Returning nothing is the correct answer. This ontology holds design values, not live operating data. The question tests whether missing data gets invented.' } }
+];

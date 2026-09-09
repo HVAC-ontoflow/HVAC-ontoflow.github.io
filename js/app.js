@@ -807,7 +807,7 @@
   }());
 
 
-  /* ═══ 05 구축 과정 · 향후 ═════════════════════════════════════════ */
+  /* ═══ 07 구축 과정 · 08 향후 ═════════════════════════════════════════ */
   register(function build() {
     var f = el('flowList');
     if (f) {
@@ -845,13 +845,16 @@
     var OG = global_OntoGraph();
 
     var heroCanvas = el('heroGraph');
-    if (heroCanvas) OG.create(heroCanvas, { mode: 'hero' });
+    if (heroCanvas) OG.create(heroCanvas, { mode: 'hero', threeD: true });
 
     var mapCanvas = el('mapGraph');
     if (!mapCanvas) return;
 
     mapGraph = OG.create(mapCanvas, {
       mode: 'map',
+      /* 주소에 ?3d 를 붙이면 3D 로 열린다. 시연에서 3D 화면을 바로 띄우거나
+         링크로 건네줄 때 쓴다. 기본은 2D — 구조를 읽기에는 평면이 낫다. */
+      threeD: /(^|[?&])3d(&|=|$)/.test(global_search()),
       onHover: function (nd) { renderRead(nd); },
       /* 장비 노드를 누르면 그 장비가 탐색 화면에 있으면 거기로 보낸다 */
       onSelect: function (nd) {
@@ -869,6 +872,7 @@
   }());
 
   function global_OntoGraph() { return window.OntoGraph || null; }
+  function global_search() { try { return window.location.search || ''; } catch (e) { return ''; } }
 
   /* 커서를 올린 노드의 정체를 캔버스 아래 고정 자리에 쓴다.
      따라다니는 말풍선은 커서가 가려 읽기 어렵고 스크린샷에서 자리가 흔들린다. */
@@ -909,6 +913,38 @@
       '<div><ul class="mr-rels">' + rels + '</ul></div>';
   }
 
+  /* ── 2D / 3D 전환 ──
+     기본은 2D 다. 회전하는 3D 는 눈에 잘 들어오지만 구조를 읽기에는 평면 바퀴가
+     낫다 — 노드가 겹치고 커서로 짚기도 어렵다. 그래서 읽는 화면은 2D 로 두고,
+     3D 는 눌러서 보는 쪽으로 뒀다. */
+  register(function dimToggle() {
+    var host = el('mapDim');
+    if (!host || !mapGraph || !mapGraph.has3D) return;
+    var L = lang() === 'ko';
+    var on = mapGraph.is3D();
+    /* 처음에는 2D · 3D 두 글자만 얹었는데 버튼이 너무 작아 아무도 찾지 못했다.
+       무엇을 고르는 자리인지 앞에 이름을 붙이고, 버튼에도 무엇이 나오는지 적는다. */
+    host.innerHTML =
+      '<span class="md-label">' + (L ? '보기' : 'View') + '</span>' +
+      '<button type="button" data-d="2" aria-pressed="' + (!on) + '">' +
+        '2D<em>' + (L ? '평면' : 'flat') + '</em></button>' +
+      '<button type="button" data-d="3" aria-pressed="' + (on) + '">' +
+        '3D<em>' + (L ? '구체' : 'sphere') + '</em></button>' +
+      '<span class="md-note">' +
+        (L ? (on ? '회전하는 구 · 가운데가 HVAC 설비, 껍질이 출처입니다'
+                 : '평면 바퀴 · 3D를 누르면 같은 그래프가 구로 펼쳐집니다')
+           : (on ? 'rotating sphere · equipment at the core, sources on the outer shell'
+                 : 'flat wheel · press 3D to unfold the same graph onto a sphere')) +
+      '</span>';
+    Array.prototype.forEach.call(host.querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () {
+        mapGraph.setThreeD(btn.getAttribute('data-d') === '3');
+        dimToggle();
+        renderRead(null);
+      });
+    });
+  });
+
   /* 범례와 규모 표시 — 언어를 바꾸면 다시 그린다 */
   register(function graphChrome() {
     var OG = window.OntoGraph;
@@ -940,6 +976,205 @@
     /* 판독 영역도 현재 언어로 다시 쓴다 */
     renderRead(null);
   });
+
+
+  /* ═══ 05 질의응답 ═══════════════════════════════════
+     스크롤이 장면을 넘긴다. 도시공원 레퍼런스의 방식이다 —
+     sticky 무대 위에 카드 세 장을 겹쳐 두고, 트랙의 스크롤 위치가
+     장면 번호를 정하고, 장면은 카드에 붙는 클래스로만 표현한다.
+     연출은 CSS 가 하고 여기서는 '지금 몇 번째 장면인가'만 계산한다.
+
+     장면은 여섯이다 — 질문 → 정답 을 세 번.
+       0 질문 E1   1 정답 E1
+       2 질문 X10  3 정답 X10
+       4 질문 R2   5 정답 R2
+
+     카드는 KB.qa 에서 그린다. 챗봇 UI 가 되지 않도록 말풍선 · 아바타 ·
+     입력창 · 발화자 표시를 쓰지 않고, 라벨 · 질의문 · 결과 행 · 메모의
+     질의 기록 형태로 짠다. */
+  var qaBeat = -1;
+
+  register(function qa() {
+    var host = el('qaCards');
+    if (!host || typeof KB === 'undefined' || !KB.qa) return;
+
+    host.innerHTML = KB.qa.map(function (item, c) {
+      var body;
+      if (item.empty) {
+        /* 0행이 정답인 문항. 빈 표를 그리면 '조회 실패'로 읽히므로
+           없음 자체를 하나의 결과로 세운다. */
+        body =
+          '<div class="qa-empty">' +
+            '<span class="qe-mark" aria-hidden="true">—</span>' +
+            '<span>' +
+              '<span class="qe-t">' + esc(t(item.empty)) + '</span><br>' +
+              '<span class="qe-n">0 rows</span>' +
+            '</span>' +
+          '</div>';
+      } else {
+        body =
+          '<ul class="qa-rows">' +
+            item.rows.map(function (r, i) {
+              return '<li class="' + (r.dwg ? 'is-dwg' : '') + '" style="--r:' + i + '">' +
+                       '<span class="qr-k">' + esc(r.k) + '</span>' +
+                       '<span class="qr-v">' + esc(r.v) + '</span>' +
+                     '</li>';
+            }).join('') +
+          '</ul>' +
+          (item.more ? '<p class="qa-more">' + esc(t(item.more)) + '</p>' : '');
+      }
+
+      return '' +
+        '<article class="qa-card" data-c="' + c + '">' +
+          '<div class="qa-kicker">' +
+            '<span class="qa-id">' + esc(item.id) + '</span>' +
+            '<span class="qa-lab">' + (lang() === 'ko' ? '질의' : 'Query') + '</span>' +
+            '<span class="qa-kind">' + esc(t(item.kind)) + '</span>' +
+          '</div>' +
+          '<p class="qa-q">' + esc(t(item.q)) + '</p>' +
+          '<div class="qa-a">' +
+            '<div class="qa-a-head">' +
+              '<span>' + (lang() === 'ko' ? '정답' : 'Answer') + '</span>' +
+              '<b>' + (lang() === 'ko' ? 'SPARQL 직접 실행' : 'SPARQL, run directly') + '</b>' +
+            '</div>' +
+            body +
+            '<p class="qa-note">' + brs(esc(t(item.note))) + '</p>' +
+          '</div>' +
+        '</article>';
+    }).join('');
+
+    var hud = el('qaHud');
+    if (hud) {
+      var dots = '';
+      for (var d = 0; d < KB.qa.length * 2; d++) dots += '<i></i>';
+      hud.innerHTML =
+        '<span class="qh-n">' + (lang() === 'ko' ? '질의응답' : 'Question &amp; answer') + '</span>' +
+        '<span class="qa-dots" id="qaDots" aria-hidden="true">' + dots + '</span>';
+    }
+
+    /* 언어를 바꿔 다시 그렸으면 지금 장면을 그 위에 다시 입힌다 */
+    if (qaBeat >= 0) qaPaint(qaBeat);
+  });
+
+  /* 장면 → 화면. 카드 하나만 열고, 홀수 장면이면 그 카드의 정답까지 연다. */
+  function qaPaint(i) {
+    var cards = document.querySelectorAll('#qaCards .qa-card');
+    var c = Math.floor(i / 2), ans = i % 2 === 1;
+    for (var k = 0; k < cards.length; k++) {
+      cards[k].classList.toggle('is-on', k === c);
+      cards[k].classList.toggle('is-ans', k === c && ans);
+    }
+    var dots = document.querySelectorAll('#qaDots i');
+    for (var d = 0; d < dots.length; d++) dots[d].classList.toggle('on', d <= i);
+  }
+
+  /* 스크롤 → 장면. 트랙을 다 지나면 마지막 장면에서 멈춘다. */
+  (function qaScroll() {
+    var sec = el('qa'), stage = el('qaStage'), track = el('qaTrack');
+    if (!sec || !stage || !track || typeof KB === 'undefined' || !KB.qa) return;
+
+    var N = KB.qa.length * 2;
+
+    /* 스텝의 높이는 CSS 가 정한다(.qa-step). 여기서는 개수만 만든다. */
+    var steps = '';
+    for (var i = 0; i < N; i++) steps += '<div class="qa-step"></div>';
+    track.innerHTML = steps;
+
+    /* 연출을 켠다 — 이 클래스가 붙어야 sticky 무대와 숨김 상태가 산다.
+       스크립트가 여기까지 오지 못하면 세 문항이 그냥 나열된 채로 남는다. */
+    sec.classList.add('on');
+
+    function render() {
+      var top = sec.getBoundingClientRect().top;
+      var span = sec.offsetHeight - stage.clientHeight;
+      var p = (-top / (span || 1)) * N;
+      var i = Math.floor(p);
+      if (i < 0) i = 0;
+      if (i > N - 1) i = N - 1;
+      if (i !== qaBeat) { qaBeat = i; qaPaint(i); }
+    }
+
+    var queued = false;
+    function onScroll() {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(function () { queued = false; render(); });
+    }
+    render();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', function () { qaBeat = -1; render(); });
+  }());
+
+
+  /* ═══ 등장 연줌 ══════════════════════════════════════
+     섹션이 화면에 들어오면 살짝 올라오며 나타난다.
+
+     <html> 에 .reveal 을 붙이는 것으로 시작한다 — CSS 의 숨김 규칙이 그
+     클래스에 걸려 있으므로, 이 함수가 실행되지 못하면 아무것도 숨지 않는다.
+     스크립트 실패가 빈 화면이 되지 않게 하는 것이 이 순서의 목적이다.
+
+     히어로는 손대지 않는다. 첫 화면은 포스터 스크린샷으로 쓰이므로
+     스크롤하지 않은 그 상태에서 이미 완성돼 있어야 한다. */
+  (function reveal() {
+    var still = window.matchMedia &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still || !window.IntersectionObserver) return;
+
+    /* 섹션마다 '올라올 것'을 고른다. 통째로 한 덩어리로 올리면 큰 판이
+       한 번에 튀어 올라 어지럽다. 제목 · 리드 · 본문 블록을 따로 잡아
+       조금씩 시차를 준다. */
+    var targets = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.sec'), function (sec) {
+      var inn = sec.querySelector('.sec-in');
+      if (!inn) return;
+      /* 섹션의 구조는 .sec-in 안에 [.sec-label, 본문 칸] 두 칸이다.
+         본문 칸은 클래스가 없는 <div> 이므로 이름으로 찾지 않고 위치로 찾는다. */
+      var picks = [];
+      Array.prototype.forEach.call(inn.children, function (col) {
+        if (col.classList.contains('sec-label')) { picks.push(col); return; }
+        Array.prototype.forEach.call(col.children, function (ch) {
+          /* 트랙은 스크롤 길이를 만드는 빈 자리라 올릴 것이 없고, 무대는
+             sticky 라 transform 을 걸면 붙어 있는 성질이 깨진다. 둘 다 뺀다. */
+          if (ch.classList.contains('qa-track')) return;
+          if (ch.classList.contains('qa-stage')) return;
+          picks.push(ch);
+        });
+      });
+      picks.forEach(function (n, i) {
+        n.classList.add('rv');
+        /* 시차는 세 칸까지만. 더 주면 아래쪽이 눈에 띄게 늦게 온다. */
+        n.style.transitionDelay = Math.min(i, 3) * 70 + 'ms';
+        targets.push(n);
+      });
+    });
+    if (!targets.length) return;
+
+    root.classList.add('reveal');
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        io.unobserve(e.target);   /* 한 번 올라오면 끝 — 되감아도 다시 숨지 않는다 */
+      });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.06 });
+
+    targets.forEach(function (n) { io.observe(n); });
+
+    /* ── 안전망 ──
+       IntersectionObserver 의 콜백은 '렌더 갱신 뒤'에 온다. 브라우저가
+       프레임을 아껴 주는 상황(백그라운드 탭 · 인쇄 · 헤드리스 캡처)에서는
+       그 갱신이 오지 않아 콜백도 오지 않는다. 그러면 이 연출은 본문을
+       영구히 숨기는 장치가 된다 — 실제로 헤드리스 스크린샷에서 히어로
+       아래 전체가 빈 화면(표준편차 0.00)으로 찍혔다.
+
+       그래서 시간으로 한 번 더 받쳐 둔다. 2.4초 뒤에 아직 숨어 있는 것은
+       조건 없이 열어 버린다. 정상적인 브라우저에서는 그 전에 IO 가
+       먼저 열기 때문에 이 타이머가 하는 일이 없다. */
+    setTimeout(function () {
+      targets.forEach(function (n) { n.classList.add('in'); });
+    }, 2400);
+  }());
 
   /* ═══ 내비게이션 현재 위치 ════════════════════════════════════════
      스크롤 위치에 따라 상단 바의 링크 하나만 켠다. */

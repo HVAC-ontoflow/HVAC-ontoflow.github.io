@@ -37,18 +37,21 @@
   /* ── 종류별 색과 이름 ──
      파란 계열이 화면을 지배하고, 색을 따로 쓰는 것은 값의 검증 상태 셋뿐이다.
      색은 장식이 아니라 값이다. */
+  /* 어두운 바탕에서는 명도 순서가 뒤집힌다. 흰 바탕에서 가장 진했던 설비가
+     여기서는 가장 밝고, 가장 조용한 출처가 가장 어둡다. 색상(파랑 계열)과
+     검증 3색의 역할은 그대로다. */
   var TYPES = {
-    eq:    { c: '#0d3a6d', r: 3.8, ko: 'HVAC 설비',       en: 'HVAC equipment' },
-    basis: { c: '#1a5fb4', r: 3.4, ko: '선정근거',         en: 'Design basis' },
-    calc:  { c: '#3f6f9f', r: 3.0, ko: '계산단계',         en: 'Calculation step' },
-    cond:  { c: '#93b0cc', r: 2.7, ko: '설계조건',         en: 'Design condition' },
-    part:  { c: '#4a7fc0', r: 2.7, ko: '부품',            en: 'Part' },
-    zone:  { c: '#7aa6d4', r: 2.9, ko: '존',              en: 'Zone' },
-    space: { c: '#b0c4d8', r: 2.9, ko: '공간',            en: 'Space' },
-    vOK:   { c: '#0f7a4f', r: 2.8, ko: '값 · 교차검증',    en: 'Value · cross-validated' },
-    vNO:   { c: '#c2560c', r: 2.8, ko: '값 · 불일치',      en: 'Value · divergent' },
-    vTOL:  { c: '#0d7490', r: 2.8, ko: '값 · 허용오차 내',  en: 'Value · within tolerance' },
-    src:   { c: '#9aa3ae', r: 2.3, ko: '출처',            en: 'Source' }
+    eq:    { c: '#dbe9ff', r: 3.8, ko: 'HVAC 설비',       en: 'HVAC equipment' },
+    basis: { c: '#7fb4ff', r: 3.4, ko: '선정근거',         en: 'Design basis' },
+    calc:  { c: '#6f9fd0', r: 3.0, ko: '계산단계',         en: 'Calculation step' },
+    cond:  { c: '#5f7d9e', r: 2.7, ko: '설계조건',         en: 'Design condition' },
+    part:  { c: '#78a8e0', r: 2.7, ko: '부품',            en: 'Part' },
+    zone:  { c: '#9dc0e4', r: 2.9, ko: '존',              en: 'Zone' },
+    space: { c: '#7d97b2', r: 2.9, ko: '공간',            en: 'Space' },
+    vOK:   { c: '#3ddc97', r: 2.8, ko: '값 · 교차검증',    en: 'Value · cross-validated' },
+    vNO:   { c: '#fb923c', r: 2.8, ko: '값 · 불일치',      en: 'Value · divergent' },
+    vTOL:  { c: '#38bdf8', r: 2.8, ko: '값 · 허용오차 내',  en: 'Value · within tolerance' },
+    src:   { c: '#647c96', r: 2.3, ko: '출처',            en: 'Source' }
   };
 
   /* 범례 순서 — 가운데 고리부터 바깥 고리 순. 그림의 반지름 순서와 같다. */
@@ -83,9 +86,26 @@
     });
     var brPh = N.map(function (n, i) { return (i * 2.399963) % 6.2832; });
 
+    /* 3차원 좌표 — 추출기가 만든 구면 배치(§7). 2D 와 함께 실려 온다. */
+    var p3 = N.map(function (n) { return [n.X || 0, n.Y || 0, n.Z || 0]; });
+    var has3 = N.length > 0 && N[0].X !== undefined;
+
+    /* 카메라 — 원근이 보일 만큼만 가깝게. CAM 이 크면 평행투영에 가까워진다.
+       3.1 로 두었을 때는 앞뒤 크기차가 2배도 안 되어 회전하는 평면 산포처럼
+       읽혔다. 2.4 면 앞 1.71배 · 뒤 0.71배로 벌어져 부피가 보인다.
+       더 줄이면(2.0 아래) 앞쪽 노드가 화면 밖으로 밀려난다. */
+    var CAM = R0 * 2.4, FOC = R0 * 2.4, TILT = -0.40;
+
+    /* 3D 는 원근 때문에 2D 보다 넓게 퍼진다 — 그만큼 줄여 화면에 담는다. */
+    var S3 = 0.92;
+
     var view = { s: 1, cx: 0, cy: 0, w: 0, h: 0, R: 1 };
     var t0 = null, raf = null, running = false, rot = 0;
     var hover = -1, hoverEdges = null, hoverNodes = null;
+
+    /* 2D ↔ 3D. morph 가 목표값을 향해 부드럽게 따라간다. */
+    var want3 = has3 && (opts.threeD === true);
+    var morph = want3 ? 1 : 0;
 
     function resize() {
       var box = canvas.getBoundingClientRect();
@@ -114,19 +134,51 @@
       view.R = R0 * view.s;
     }
 
-    /* 극좌표 → 화면 좌표 */
+    /* ── 좌표 계산 ──
+       2D 는 극좌표(고리+각도), 3D 는 회전 후 원근 투영.
+       morph 로 두 결과를 화면 좌표에서 섞는다 — 위치를 섞는 것이라
+       전환이 튀지 않고, 어느 쪽도 계산이 무겁지 않다.
+
+       z 는 깊이 단서를 만드는 데 쓴다. 0(먼 쪽)~1(가까운 쪽)로 정규화해
+       크기와 진하기에 곱한다. 안개가 없으면 구가 평면 원반처럼 보인다. */
+    var cosR = 1, sinR = 0, cosT = 1, sinT = 0;
+
     function P(i, prog, tt) {
+      /* 2D */
       var a = ang0[i] + rot, r = rad0[i];
       if (prog < 1) {
-        /* 등장 — 바깥에서 제 고리로 모인다. 결정적이라 매번 같다. */
-        var p = ease(Math.min(1, Math.max(0, prog * 1.4 - (i % 32) * 0.009)));
-        r = R0 * 1.3 * (1 - p) + r * p;
-        a += (1 - p) * 0.2;
+        /* 등장 — 바깥에서 제 자리로 모인다. 결정적이라 매번 같다. */
+        var pe = ease(Math.min(1, Math.max(0, prog * 1.4 - (i % 32) * 0.009)));
+        r = R0 * 1.3 * (1 - pe) + r * pe;
+        a += (1 - pe) * 0.2;
       } else if (!reduced) {
         r += Math.sin(tt * 0.5 + brPh[i]) * 1.5;
       }
-      return { x: view.cx + Math.cos(a) * r * view.s,
-               y: view.cy + Math.sin(a) * r * view.s };
+      var x2 = view.cx + Math.cos(a) * r * view.s;
+      var y2 = view.cy + Math.sin(a) * r * view.s;
+
+      if (morph < 0.001) return { x: x2, y: y2, k: 1, z: 0.62 };
+
+      /* 3D — Y축 회전 다음 X축 기울임, 그리고 원근 */
+      var v = p3[i], grow = 1;
+      if (prog < 1) {
+        var pe3 = ease(Math.min(1, Math.max(0, prog * 1.4 - (i % 32) * 0.009)));
+        grow = 1.3 * (1 - pe3) + pe3;
+      }
+      var vx = v[0] * grow, vy = v[1] * grow, vz = v[2] * grow;
+      var rx = vx * cosR + vz * sinR;
+      var rz = -vx * sinR + vz * cosR;
+      var ry = vy * cosT - rz * sinT;
+      var rz2 = vy * sinT + rz * cosT;
+      var k = FOC / Math.max(120, CAM - rz2);
+      var x3 = view.cx + rx * k * view.s * S3;
+      var y3 = view.cy + ry * k * view.s * S3;
+      var zn = (rz2 + R0) / (2 * R0);          /* 0 먼 쪽 · 1 가까운 쪽 */
+
+      if (morph > 0.999) return { x: x3, y: y3, k: k, z: zn };
+      var m = morph;
+      return { x: x2 + (x3 - x2) * m, y: y2 + (y3 - y2) * m,
+               k: 1 + (k - 1) * m, z: 0.62 + (zn - 0.62) * m };
     }
 
     function draw() {
@@ -142,6 +194,22 @@
       /* 아주 느리게. 살아 있다는 것만 보이면 된다. */
       if (!reduced) rot = tt * (isHero ? 0.0075 : 0.004);
 
+      /* 2D ↔ 3D 전환을 따라간다 (약 0.5초) */
+      var target = want3 ? 1 : 0;
+      if (morph !== target) {
+        var stepM = reduced ? 1 : 0.055;
+        morph += Math.min(stepM, Math.abs(target - morph)) * (target > morph ? 1 : -1);
+        if (Math.abs(target - morph) < 0.002) morph = target;
+      }
+
+      /* 3D 회전 — 2D 와 달리 각도에 더하는 것으로는 안 되므로 미리 계산해 둔다 */
+      /* 회전 속도. 3D 에서는 움직임 자체가 깊이 단서라서 2D 의 미세한 회전
+         (0.0075)처럼 두면 3D 인 줄 모른다. 0.10 은 한 바퀴 63초로 멈춘 것처럼
+         보였다. 0.30 이면 21초, 배경으로 두기에 아직 조용하다. */
+      var yaw = reduced ? 0.6 : tt * (isHero ? 0.30 : 0.24);
+      cosR = Math.cos(yaw); sinR = Math.sin(yaw);
+      cosT = Math.cos(TILT); sinT = Math.sin(TILT);
+
       ctx.clearRect(0, 0, view.w, view.h);
       var dim = hover >= 0;
 
@@ -152,6 +220,14 @@
 
       var pt = new Array(N.length);
       for (var i = 0; i < N.length; i++) pt[i] = P(i, prog, tt);
+
+      /* 3D 에서는 먼 것부터 그려야 가까운 것이 위에 온다.
+         2D 에서는 순서가 의미 없으므로 정렬을 건너뛴다. */
+      var order = new Array(N.length);
+      for (var oi = 0; oi < N.length; oi++) order[oi] = oi;
+      if (morph > 0.001) {
+        order.sort(function (p, q) { return pt[p].z - pt[q].z; });
+      }
 
       /* ── 엣지 ──
          트리 엣지는 곧은 방사선. 현은 안쪽으로 아주 살짝 배부르게 —
@@ -167,13 +243,20 @@
         var a = pt[E[e2][0]], b = pt[E[e2][1]];
         var lit = !isHero && dim && hoverEdges.has(e2);
         var al = (isHero ? 0.30 : (dim ? (lit ? 0.7 : 0.05) : 0.22)) * prog;
+        /* 깊이 안개 — 뒤로 갈수록 옅게. 이게 없으면 구가 평면처럼 보인다. */
+        if (morph > 0.001) {
+          var zAvg = (a.z + b.z) / 2;
+          al *= 1 - morph * (1 - (0.16 + 0.84 * zAvg));
+        }
         if (al < 0.012) continue;
-        ctx.strokeStyle = lit ? 'rgba(26,95,180,' + al + ')'
-                              : 'rgba(45,86,134,' + al + ')';
+        ctx.strokeStyle = lit ? 'rgba(140,194,255,' + al + ')'
+                              : 'rgba(148,186,232,' + al + ')';
         ctx.lineWidth = lit ? 1.6 : 0.9;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
-        if (E[e2][3]) {
+        /* 3D 에서는 곧은 선으로 둔다. 휘어진 현은 평면에서 겹침을 풀어 주지만
+           회전하는 3D 에서는 방향이 헷갈리게 만든다. */
+        if (E[e2][3] || morph > 0.5) {
           ctx.lineTo(b.x, b.y);
         } else {
           var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
@@ -183,23 +266,29 @@
         ctx.stroke();
       }
 
-      /* ── 노드 ── */
-      for (var j = 0; j < N.length; j++) {
+      /* ── 노드 ── 3D 에서는 먼 것부터 ── */
+      for (var oj = 0; oj < order.length; oj++) {
+        var j = order[oj];
         var n = N[j], ty = TYPES[n.t] || TYPES.src, p = pt[j];
         var rr = (ty.r + Math.min(2.6, Math.sqrt(n.d) * 0.6)) * (isHero ? 0.9 : 1);
         var litN = !isHero && dim && hoverNodes.has(j);
-        var al2 = (isHero ? 0.8 : (dim ? (litN ? 1 : 0.14) : 0.92)) * prog;
+        var al2 = (isHero ? 0.88 : (dim ? (litN ? 1 : 0.14) : 0.92)) * prog;
+        if (morph > 0.001) {
+          rr *= 1 + morph * (p.k - 1);                       /* 원근 크기 */
+          al2 *= 1 - morph * (1 - (0.20 + 0.80 * p.z));      /* 깊이 안개 */
+        }
 
         ctx.globalAlpha = al2;
         ctx.fillStyle = ty.c;
         ctx.beginPath();
         ctx.arc(p.x, p.y, rr * (litN ? 1.45 : 1), 0, 6.2832);
         ctx.fill();
-        /* 흰 테두리 한 줄 — 붙어 있는 노드가 서로 떨어져 보이게 한다 */
+        /* 바탕색 테두리 한 줄 — 붙어 있는 노드가 서로 떨어져 보이게 한다.
+           흰 테두리를 두면 어두운 바탕에서 노드마다 흰 링이 생겨 더 지저분하다. */
         if (!isHero || litN) {
           ctx.globalAlpha = al2 * 0.85;
           ctx.lineWidth = 1;
-          ctx.strokeStyle = '#fff';
+          ctx.strokeStyle = '#070d18';
           ctx.stroke();
         }
         ctx.globalAlpha = 1;
@@ -219,20 +308,36 @@
           var gap = (TYPES[n2.t] || TYPES.src).r + 7;
           var bx = out > 0 ? p2.x + gap : p2.x - gap - w;
           bx = Math.max(3, Math.min(bx, view.w - w - 4));
-          ctx.fillStyle = 'rgba(255,255,255,.95)';
+          ctx.fillStyle = 'rgba(7,13,24,.92)';
           ctx.fillRect(bx - 3, p2.y - 8, w + 7, 16);
-          ctx.fillStyle = isMain ? '#0e2543' : '#5b7391';
+          ctx.fillStyle = isMain ? '#e8f0fc' : '#93accb';
           ctx.fillText(label, bx, p2.y);
         });
       }
 
+      lastPt = pt;
       raf = running ? global.requestAnimationFrame(draw) : null;
     }
 
     function kick() { if (raf === null && running) raf = global.requestAnimationFrame(draw); }
 
-    /* ── hover ── 현재 회전을 반영해 극좌표로 찍는다 ── */
+    /* ── hover ──
+       마지막으로 그린 화면 좌표(lastPt)로 찍는다. 2D 는 각도만 되돌리면 됐지만
+       3D 는 회전·기울임·원근이 겹쳐 역산이 번거롭고, 어차피 매 프레임 좌표를
+       계산해 두므로 그것을 쓰는 편이 정확하다. 겹친 노드 중에서는 가까운 것을
+       고른다 — 눈에 보이는 것이 잡혀야 한다. */
+    var lastPt = null;
+
     function pick(mx, my) {
+      if (lastPt) {
+        var b3 = -1, bd3 = 18 * 18, bz = -1;
+        for (var q = 0; q < N.length; q++) {
+          var pq = lastPt[q];
+          var dq = (pq.x - mx) * (pq.x - mx) + (pq.y - my) * (pq.y - my);
+          if (dq < bd3 && pq.z >= bz) { bd3 = Math.max(dq, 1); bz = pq.z; b3 = q; }
+        }
+        if (b3 >= 0) return b3;
+      }
       var best = -1, bd = 16 * 16;
       for (var i = 0; i < N.length; i++) {
         var a = ang0[i] + rot, r = rad0[i] * view.s;
@@ -306,8 +411,18 @@
       }, { threshold: 0 }).observe(canvas);
     }
 
-    return { start: start, stop: stop, resize: resize, info: info,
-             count: { nodes: N.length, edges: E.length } };
+    return {
+      start: start, stop: stop, resize: resize, info: info,
+      has3D: has3,
+      is3D: function () { return want3; },
+      setThreeD: function (on) {
+        if (!has3 && on) return;
+        want3 = !!on;
+        setHover(-1);
+        kick();
+      },
+      count: { nodes: N.length, edges: E.length }
+    };
   }
 
   global.OntoGraph = { create: create, TYPES: TYPES, LEGEND: LEGEND, reduced: reduced };
