@@ -545,6 +545,12 @@ h2 {
   letter-spacing: .12em; text-transform: uppercase; white-space: nowrap;
 }
 .badge::before { font-size: 11px; font-weight: 600; line-height: 1; }
+/* 코드 옆의 한글 뜻. 코드보다 한 단계 조용하게 두어 코드가 먼저 읽히게 한다. */
+.badge-ko {
+  font-family: var(--kr); font-style: normal; font-size: 11px; font-weight: 400;
+  letter-spacing: 0; text-transform: none; opacity: .82;
+  padding-left: 2px;
+}
 .badge.is-ok      { color: var(--ok);   background: var(--ok-soft); }
 .badge.is-ok::before      { content: "="; }
 .badge.is-warn    { color: var(--warn); background: var(--warn-soft); }
@@ -1296,7 +1302,7 @@ h2 {
   .vh-cq, .claim-doc, .op-note, .gc-t, .fu-l, .bh-t, .cap-go, .cap-n,
   .foot-back, .dist h3, .siblings h3, .q-jump, .excerpt > summary,
   .detail-dl dt, .bldg dt, .graph-cap .gc-t,
-  .qa-who-t, .qa-tag, .qh-n, .qe-n, .map-dim .md-label
+  .qa-who-t, .qa-tag, .qh-n, .qe-n, .map-dim .md-label, .badge-ko
 ) {
   letter-spacing: .02em; text-transform: none;
 }
@@ -1496,18 +1502,53 @@ h2 {
    2) 히어로는 대상이 아니다 — 첫 화면은 포스터 스크린샷으로 쓰이므로
       스크롤 없이 그 자리에서 완성돼 있어야 한다.
    ═══════════════════════════════════════════════════════════════ */
-html.reveal .rv { opacity: 0; transform: translateY(16px); }
-/* 반복 항목은 개수가 많아 이동거리를 짧게 둔다 — 같은 거리로 밀면
-   목록 전체가 출렁이는 것처럼 보인다. */
-html.reveal li.rv, html.reveal tr.rv { transform: translateY(10px); }
+/* 시작 자리는 JS 가 요소마다 정해 준다 — 도시공원 레퍼런스가 자치구 25조각을
+   '도심 바깥에서 날아와 제자리에 앉게' 만든 방식 그대로다.
+     --ox / --oy  제자리에서 얼마나 밖에 있다가 들어올지 (바깥 방향)
+     --o          등장 순서
+   전환은 .in 에만 걸어 둔다. 초기 상태에 걸면 첫 프레임에 한 번 튄다. */
+html.reveal .rv {
+  opacity: 0;
+  transform: translate(var(--ox, 0px), var(--oy, 22px));
+}
 html.reveal .rv.in {
   opacity: 1; transform: none;
-  /* 감속만 있는 곡선 — 시작이 빠르고 끝이 길어 '올라와 앉는' 느낌이 된다 */
-  transition: opacity .72s cubic-bezier(.22, .61, .36, 1),
-              transform .72s cubic-bezier(.22, .61, .36, 1);
+  /* 레퍼런스의 곡선을 그대로 쓴다. 감속이 아주 길어서 '날아와 앉는' 느낌이
+     나온다 — 짧은 ease 로는 그냥 나타났다가 끝난다. 불투명도는 이동보다
+     빨리 끝내야 글자가 흐린 채로 오래 남지 않는다. */
+  transition: opacity .7s ease,
+              transform 1.15s cubic-bezier(.18, .84, .26, 1);
+  transition-delay: calc(var(--o, 0) * 68ms);
 }
+
+/* 섹션에 도달했다는 표시 — 제목 아래 헤어라인이 왼쪽에서 그어진다.
+   파트가 넘어가는 순간이 눈에 걸려야 '넘어갔다'가 읽힌다. */
+.sec-label { position: relative; }
+html.reveal .sec-label::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -16px; height: 1px;
+  background: var(--accent-line);
+  transform: scaleX(0); transform-origin: 0 50%;
+}
+html.reveal .sec-label.in::after {
+  transform: scaleX(1);
+  transition: transform 1.1s cubic-bezier(.18, .84, .26, 1) 140ms;
+}
+
+/* 페이지 어디쯤인지 — 상단 2px 띠. 스크롤 0 에서는 폭이 0 이라
+   포스터용 첫 화면 스크린샷에는 나오지 않는다. */
+.scroll-prog {
+  position: fixed; top: 0; left: 0; z-index: 40;
+  height: 2px; width: 0;
+  background: var(--accent);
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html.reveal .rv { opacity: 1; transform: none; }
+  html.reveal .sec-label::after { transform: scaleX(1); }
+  /* 레퍼런스와 같은 처리 — 끄는 것이 아니라 사실상 0 으로 줄인다 */
+  html.reveal .rv.in { transition-duration: .01s; transition-delay: 0s; }
+  .scroll-prog { display: none; }
 }
 /* 인쇄에서는 스크롤이 없으므로 연출도 없다 — 숨은 채로 인쇄되면 안 된다 */
 @media print {

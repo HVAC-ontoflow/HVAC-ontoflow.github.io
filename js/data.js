@@ -39,7 +39,7 @@ const KB = {
      ontology.ttl 을 직접 세어 교차확인한 항목에 verified: true 를 둔다.
        값 노드 4,081        = hvo:QuantityValue 개체 수
        sourcedFrom 15,983  = src: 참조 16,904 − SourceReference 주어 921
-       교차검증 948 / 불일치 493 / 허용오차 24 = hvo:valueStatus 실측
+       교차검증 948 / 값 차이 493 / 허용오차 24 = hvo:valueStatus 실측
        계산단계 83 · 설계전제 29 · 선정근거 16 = 해당 클래스 개체 수 */
   scale: {
     headline: [
@@ -53,7 +53,7 @@ const KB = {
         note: { ko: '개체 5,051 중',       en: 'of 5,051 individuals' } },
       { value: 948,   label: { ko: '교차검증',          en: 'Cross-validated' },
         note: { ko: '도면과 계산서 일치',   en: 'drawing = calculation' }, verified: true },
-      { value: 493,   label: { ko: '값 불일치',         en: 'Divergent' },
+      { value: 493,   label: { ko: '두 자료가 다름',     en: 'Divergent' },
         note: { ko: '두 값 모두 보존',      en: 'both values preserved' }, verified: true }
     ],
     detail: [
@@ -76,12 +76,12 @@ const KB = {
       desc:  { ko: '서로 다른 자료에서 같은 값이 확인됨',
                en: 'the same value confirmed in different documents' } },
     { code: 'DIVERGENT',     count: 493,  tone: 'warn',
-      label: { ko: '값 불일치',   en: 'Divergent' },
+      label: { ko: '두 자료가 다름', en: 'Divergent' },
       desc:  { ko: '문서 간 값이 다름 — 어느 쪽도 지우지 않고 둘 다 보존',
                en: 'documents disagree — both values preserved, neither discarded' } },
     { code: 'TOLERANCE_OK',  count: 24,   tone: 'tol',
       label: { ko: '허용오차 내',  en: 'Within tolerance' },
-      desc:  { ko: '값이 다르지만 허용오차 안 — 실제 모순과 구분',
+      desc:  { ko: '값이 다르지만 허용오차 안 — 확인이 필요한 차이와 구분',
                en: 'values differ but stay within tolerance — separated from real conflict' } },
     { code: 'SINGLE_SOURCE', count: 2614, tone: 'neutral',
       label: { ko: '단일 출처',    en: 'Single source' },
@@ -411,11 +411,11 @@ KB.validation = [
         value: '3.0', unit: 'kW', kind: 'rated', status: 'SINGLE_SOURCE', excerpt: '3.0' }
     ],
     verdict: {
-      ko: '단일 값으로 확정해서 답하면 안 된다. ABox에는 2.2 kW와 3.0 kW가 모두 존재하고, 2.2 kW 정격값은 DIVERGENT로 명시되어 있다. 어느 쪽이 맞는지 시스템이 임의로 고르지 않고 두 값과 각각의 출처를 그대로 보존한 뒤 "문서 간 값이 불일치하므로 확인이 필요하다"는 상태를 남긴다.',
+      ko: '단일 값으로 확정해서 답하면 안 된다. ABox에는 2.2 kW와 3.0 kW가 모두 존재하고, 2.2 kW 정격값은 DIVERGENT로 명시되어 있다. 어느 쪽으로도 확정하지 않고 두 값과 각각의 출처를 그대로 보존한 뒤 "두 문서에 다른 값이 적혀 있어 확인이 필요하다"는 상태를 남긴다.',
       en: 'This must not be answered with a single figure. The ABox holds both 2.2 kW and 3.0 kW, and the 2.2 kW rating is explicitly marked DIVERGENT. The system does not pick a winner: it keeps both values with their own sources and records that the documents disagree and need checking.'
     },
     philosophy: {
-      ko: '모순을 임의로 해소하지 않는다 — 불일치 자체를 지식으로 남긴다.',
+      ko: '어느 쪽도 틀린 값이 아니다 — 두 자료에 다르게 적혀 있다는 사실을 그대로 남긴다.',
       en: 'Conflicts are not silently resolved — the disagreement itself is kept as knowledge.'
     }
   },
@@ -441,7 +441,7 @@ KB.validation = [
        상대차이 백분율은 어느 자료에도 없어서 넣지 않는다. */
     diff: { value: '1', unit: 'CMH' },
     verdict: {
-      ko: '중대한 불일치로 판단하지 않는다. 두 값 모두 TOLERANCE_OK로 분류되어 있으므로 1 CMH 차이는 허용오차 내 차이로 보존하며 DIVERGENT로 처리하지 않는다.',
+      ko: '문제가 되는 차이로 보지 않는다. 두 값 모두 TOLERANCE_OK로 분류되어 있으므로 1 CMH 차이는 허용오차 내 차이로 보존하며 DIVERGENT로 처리하지 않는다.',
       en: 'Not treated as a material conflict. Both values are classified TOLERANCE_OK, so the 1 CMH gap is preserved as a within-tolerance difference rather than promoted to DIVERGENT.'
     },
     philosophy: {
@@ -545,7 +545,7 @@ KB.queries = [
   { no: 9, type: 'trust', subject: 'ZHUA01', flagship: true,
     q: { ko: 'ZHUA01의 모터동력은 몇 kW인가?',
          en: 'What is ZHUA01’s motor power in kW?' },
-    a: { ko: '단일 값으로 확정해서 답하면 안 됩니다. ABox에는 2.2 kW와 3.0 kW가 모두 존재합니다. 특히 2.2 kW 정격값은 DIVERGENT로 명시되어 있으므로, 에이전트는 "문서 간 값이 불일치하므로 확인이 필요하다"고 답하는 것이 적절합니다.',
+    a: { ko: '단일 값으로 확정해서 답하면 안 됩니다. ABox에는 2.2 kW와 3.0 kW가 모두 존재합니다. 특히 2.2 kW 정격값은 DIVERGENT로 명시되어 있으므로, 에이전트는 "두 문서에 다른 값이 적혀 있어 확인이 필요하다"고 답하는 것이 적절합니다.',
          en: 'This must not be answered with a single figure. The ABox holds both 2.2 kW and 3.0 kW, and the 2.2 kW rating is explicitly marked DIVERGENT — so the correct answer is that the documents disagree and the value needs checking.' },
     evidence: ['hvo:motorPower 2.2 → valueStatus "DIVERGENT" · discrepancyType "A"',
                'hvo:motorPower 3.0 → valueStatus "SINGLE_SOURCE"',
@@ -557,7 +557,7 @@ KB.queries = [
   { no: 10, type: 'trust', subject: 'ZHUA02', flagship: true,
     q: { ko: 'ZHUA02의 설계풍량이 6,200 CMH와 6,201 CMH로 다른데 오류인가?',
          en: 'ZHUA02’s design air flow appears as both 6,200 and 6,201 CMH — is that an error?' },
-    a: { ko: '중대한 불일치로 판단하지 않습니다. ABox에는 6,200 CMH와 계산값 6,201 CMH가 모두 존재하지만 두 값 모두 TOLERANCE_OK로 분류되어 있습니다. 따라서 1 CMH 차이는 허용오차 내 차이로 보존하며, DIVERGENT로 처리하지 않습니다.',
+    a: { ko: '문제가 되는 차이로 보지 않습니다. ABox에는 6,200 CMH와 계산값 6,201 CMH가 모두 존재하지만 두 값 모두 TOLERANCE_OK로 분류되어 있습니다. 따라서 1 CMH 차이는 허용오차 내 차이로 보존하며, DIVERGENT로 처리하지 않습니다.',
          en: 'Not a material conflict. The ABox holds both 6,200 CMH and the calculated 6,201 CMH, but both are classified TOLERANCE_OK — so the 1 CMH difference is preserved as within tolerance and is not promoted to DIVERGENT.' },
     evidence: ['hvo:designAirFlow 6200 → valueKind "rated" · valueStatus "TOLERANCE_OK"',
                'hvo:designAirFlow 6201 → valueKind "calculated" · valueStatus "TOLERANCE_OK"',

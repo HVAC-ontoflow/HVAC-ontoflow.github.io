@@ -67,16 +67,29 @@
     VERIFIED: 'ok', DIVERGENT: 'warn', TOLERANCE_OK: 'tol',
     SINGLE_SOURCE: 'neutral', UNRESOLVED: 'neutral'
   };
+  /* 상태 코드의 한글 뜻. DIVERGENT 를 코드만 크게 띄워 두면 '틀렸다 · 오류'로
+     읽힌다. 이건 오류가 아니라 두 문서에 다르게 적혀 있다는 사실이므로, 코드와
+     뜻을 늘 붙여 둔다. 코드 자체는 온톨로지의 실제 값이라 그대로 쓴다. */
+  var STATUS_KO = {
+    VERIFIED:      '두 자료가 같음',
+    DIVERGENT:     '두 자료가 다름',
+    TOLERANCE_OK:  '허용오차 안',
+    SINGLE_SOURCE: '자료 한 곳',
+    UNRESOLVED:    '판정 보류'
+  };
   function badge(status, small) {
     if (!status) return '';
+    /* 좁은 자리(badge--sm)에는 코드만 — 뜻까지 넣으면 값 옆에서 줄이 넘친다 */
+    var gloss = (!small && lang() === 'ko' && STATUS_KO[status])
+      ? '<i class="badge-ko">' + esc(STATUS_KO[status]) + '</i>' : '';
     return '<span class="badge is-' + (TONE[status] || 'neutral') + (small ? ' badge--sm' : '') + '">' +
-           esc(status) + '</span>';
+           esc(status) + gloss + '</span>';
   }
 
   /* 상태별 관계 기호 — 두 값 사이에 세워 관계 자체를 먼저 읽히게 한다 */
   var OP = {
     VERIFIED:     { sym: '=', note: { ko: '값 일치',      en: 'values agree' } },
-    DIVERGENT:    { sym: '≠', note: { ko: '값 불일치', en: 'values differ' } },
+    DIVERGENT:    { sym: '≠', note: { ko: '두 자료가 다름', en: 'the two sources differ' } },
     TOLERANCE_OK: { sym: '≈', note: { ko: '허용오차 내', en: 'within tolerance' } }
   };
 
@@ -873,6 +886,10 @@
 
   function global_OntoGraph() { return window.OntoGraph || null; }
   function global_search() { try { return window.location.search || ''; } catch (e) { return ''; } }
+  function global_w() {
+    try { return document.documentElement.clientWidth || window.innerWidth; }
+    catch (e) { return 0; }
+  }
 
   /* 커서를 올린 노드의 정체를 캔버스 아래 고정 자리에 쓴다.
      따라다니는 말풍선은 커서가 가려 읽기 어렵고 스크린샷에서 자리가 흔들린다. */
@@ -1024,22 +1041,35 @@
           (item.more ? '<p class="qa-more">' + esc(t(item.more)) + '</p>' : '');
       }
 
+      var L = lang() === 'ko';
+      /* 두 덩어리가 누구의 말인지 한눈에 갈라져야 한다 — 물어본 쪽(사람)과
+         답한 쪽(온톨로지). 말풍선을 쓰지 않고 각 덩어리에 이름을 붙이고,
+         응답만 다른 면(--panel) 위에 올려 '돌려받은 기록'으로 보이게 한다. */
       return '' +
         '<article class="qa-card" data-c="' + c + '">' +
-          '<div class="qa-kicker">' +
-            '<span class="qa-id">' + esc(item.id) + '</span>' +
-            '<span class="qa-lab">' + (lang() === 'ko' ? '질의' : 'Query') + '</span>' +
-            '<span class="qa-kind">' + esc(t(item.kind)) + '</span>' +
-          '</div>' +
-          '<p class="qa-q">' + esc(t(item.q)) + '</p>' +
-          '<div class="qa-a">' +
-            '<div class="qa-a-head">' +
-              '<span>' + (lang() === 'ko' ? '정답' : 'Answer') + '</span>' +
-              '<b>' + (lang() === 'ko' ? 'SPARQL 직접 실행' : 'SPARQL, run directly') + '</b>' +
+
+          '<div class="qa-block qa-block--q">' +
+            '<div class="qa-who">' +
+              '<span class="qa-who-t">' + (L ? '질문' : 'Question') + '</span>' +
+              '<span class="qa-who-s">' + (L ? '사람이 입력한 문장' : 'typed by a person') + '</span>' +
+              '<span class="qa-tag">' + esc(item.id) + ' · ' + esc(t(item.kind)) + '</span>' +
             '</div>' +
-            body +
-            '<p class="qa-note">' + brs(esc(t(item.note))) + '</p>' +
+            '<p class="qa-q">' + esc(t(item.q)) + '</p>' +
           '</div>' +
+
+          '<div class="qa-block qa-block--a qa-a">' +
+            '<div class="qa-who">' +
+              '<span class="qa-who-t">' + (L ? '온톨로지 기반 답변' : 'Answer from the ontology') + '</span>' +
+              '<span class="qa-who-s">' + (L ? '지어낸 문장이 아니라 그래프에서 직접 조회한 값입니다'
+                                              : 'read directly from the graph, not generated') + '</span>' +
+              '<span class="qa-tag is-q">' + (L ? 'SPARQL 직접 실행' : 'SPARQL, run directly') + '</span>' +
+            '</div>' +
+            '<div class="qa-res">' +
+              body +
+              '<p class="qa-note">' + brs(esc(t(item.note))) + '</p>' +
+            '</div>' +
+          '</div>' +
+
         '</article>';
     }).join('');
 
@@ -1123,28 +1153,76 @@
     /* 섹션마다 '올라올 것'을 고른다. 통째로 한 덩어리로 올리면 큰 판이
        한 번에 튀어 올라 어지럽다. 제목 · 리드 · 본문 블록을 따로 잡아
        조금씩 시차를 준다. */
+    /* 무엇을 올릴지 고르는 규칙.
+
+       처음에는 섹션의 본문 블록을 그대로 올렸다. 그런데 이 페이지의 블록은
+       대부분 표 · 목록 · 격자여서, 한 덩어리로 통째로 떠오르면 '떠올랐다'로
+       끝나고 읽는 리듬이 생기지 않는다. 그래서 한 단계 더 들어가서, 반복되는
+       항목이 있으면 블록 대신 그 항목들을 차례로 올린다 — 값이 하나씩 도착하는
+       것처럼 보이는 편이 이 페이지의 내용(조회 결과)에 맞는다.
+
+       판정은 단순하게 둔다: 자식이 셋 이상이고 모두 같은 태그면 반복 항목이다. */
+    function repeated(node) {
+      var ch = node.children;
+      if (ch.length < 3) return null;
+      var tag = ch[0].tagName;
+      for (var i = 1; i < ch.length; i++) if (ch[i].tagName !== tag) return null;
+      return ch;
+    }
+
     var targets = [];
+
+    /* 요소마다 '어디서 들어올지'를 정한다.
+
+       레퍼런스는 자치구 조각을 중심에서 바깥 방향으로 밀어 두고 제자리로
+       불러들인다. 여기서도 같은 규칙을 쓴다 — 화면 가운데를 기준으로 왼쪽에
+       있는 것은 왼쪽에서, 오른쪽에 있는 것은 오른쪽에서 들어온다. 그래서
+       두 열·세 열짜리 격자가 가운데로 모이는 것처럼 보인다.
+
+       세로는 항상 아래에서 올라온다. 위에서 내려오게 하면 스크롤 방향과
+       반대로 움직여 읽는 흐름과 싸운다. */
+    function mark(n, i, step) {
+      n.classList.add('rv');
+
+      var r = n.getBoundingClientRect();
+      var mid = (global_w() || 1200) / 2;
+      var cx = r.left + r.width / 2;
+      /* 가운데에서 얼마나 벗어났는지를 -1~1 로 본다. 화면 폭의 절반을 다
+         쓰는 넓은 블록은 0 에 가까워져 옆으로 흔들리지 않는다. */
+      var off = r.width > mid ? 0 : Math.max(-1, Math.min(1, (cx - mid) / mid));
+
+      n.style.setProperty('--ox', (off * 26).toFixed(1) + 'px');
+      n.style.setProperty('--oy', (r.width > mid ? 24 : 18) + 'px');
+      n.style.setProperty('--o', Math.min(i, 7) * (step / 68));
+      targets.push(n);
+    }
+
     Array.prototype.forEach.call(document.querySelectorAll('.sec'), function (sec) {
       var inn = sec.querySelector('.sec-in');
       if (!inn) return;
       /* 섹션의 구조는 .sec-in 안에 [.sec-label, 본문 칸] 두 칸이다.
          본문 칸은 클래스가 없는 <div> 이므로 이름으로 찾지 않고 위치로 찾는다. */
-      var picks = [];
+      var blocks = [];
       Array.prototype.forEach.call(inn.children, function (col) {
-        if (col.classList.contains('sec-label')) { picks.push(col); return; }
+        if (col.classList.contains('sec-label')) { blocks.push(col); return; }
         Array.prototype.forEach.call(col.children, function (ch) {
           /* 트랙은 스크롤 길이를 만드는 빈 자리라 올릴 것이 없고, 무대는
              sticky 라 transform 을 걸면 붙어 있는 성질이 깨진다. 둘 다 뺀다. */
           if (ch.classList.contains('qa-track')) return;
           if (ch.classList.contains('qa-stage')) return;
-          picks.push(ch);
+          blocks.push(ch);
         });
       });
-      picks.forEach(function (n, i) {
-        n.classList.add('rv');
-        /* 시차는 세 칸까지만. 더 주면 아래쪽이 눈에 띄게 늦게 온다. */
-        n.style.transitionDelay = Math.min(i, 3) * 70 + 'ms';
-        targets.push(n);
+
+      blocks.forEach(function (b, bi) {
+        var items = repeated(b);
+        if (items) {
+          /* 반복 항목이면 블록은 그대로 두고 항목만 하나씩 올린다.
+             블록까지 같이 올리면 알파가 곱해져 시차가 묻힌다. */
+          for (var k = 0; k < items.length; k++) mark(items[k], k, 55);
+        } else {
+          mark(b, bi, 70);
+        }
       });
     });
     if (!targets.length) return;
@@ -1160,6 +1238,29 @@
     }, { rootMargin: '0px 0px -12% 0px', threshold: 0.06 });
 
     targets.forEach(function (n) { io.observe(n); });
+
+    /* ── 스크롤 진행 띠 ──
+       파트가 많고 페이지가 길어서, 지금 어디쯤인지가 보이면 '넘어가는' 감각이
+       생긴다. 요소를 하나 만들어 붙이는 쪽을 택했다 — 마크업에 두면 스크립트가
+       실패했을 때 0폭짜리 띠가 남는다. */
+    var bar = document.createElement('div');
+    bar.className = 'scroll-prog';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+
+    var qb = false;
+    function progress() {
+      var h = document.documentElement.scrollHeight - window.innerHeight;
+      var p = h > 0 ? window.scrollY / h : 0;
+      bar.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', function () {
+      if (qb) return;
+      qb = true;
+      window.requestAnimationFrame(function () { qb = false; progress(); });
+    }, { passive: true });
+    window.addEventListener('resize', progress);
+    progress();
 
     /* ── 안전망 ──
        IntersectionObserver 의 콜백은 '렌더 갱신 뒤'에 온다. 브라우저가

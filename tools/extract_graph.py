@@ -476,6 +476,88 @@ for t in ['eq', 'part', 'vOK', 'src']:
         print('  %-5s 띠 %3.0f~%3.0f (평균 %3.0f, 두께 %.1f)'
               % (t, rn[sel].min(), rn[sel].max(), rn[sel].mean(), rn[sel].std()))
 
+# ── 7. 3차원 배치 ──────────────────────────────────────────────────────
+# 2D 는 원판이다 — 반지름은 클래스, 각도는 트리.
+# 3D 는 그 구면 판본이다 — 반지름은 그대로 클래스가 정하고, 트리가 정하는 것이
+# 원 위의 각도 하나가 아니라 구 위의 방향(단위벡터)이 된다.
+#
+#   장비 47대   피보나치 구면으로 고르게 흩뿌린 방향
+#   그 아래 것  부모 방향 주변의 좁은 원뿔 안 (깊어질수록 좁아진다)
+#
+# 그래서 3D 에서도 "한 설비에 매달린 것은 그 설비 근처에 모여 있다" 가 유지된다.
+# 그 상태에서 2D 와 같은 힘으로 짧은 이완을 돌려 겹침을 푼다.
+#
+# 2D 좌표(x, y)는 그대로 남긴다 — 화면에서 2D/3D 를 전환하기 때문이다.
+
+GA = math.pi * (3.0 - math.sqrt(5.0))      # 황금각
+
+dir3 = {}
+for k, u in enumerate(eq_idx):
+    yy = 1.0 - 2.0 * (k + 0.5) / len(eq_idx)
+    rr = math.sqrt(max(0.0, 1.0 - yy * yy))
+    th = GA * k
+    dir3[u] = np.array([math.cos(th) * rr, yy, math.sin(th) * rr])
+
+def spread3(u, cone, depth_i=0):
+    ch = kids[u]
+    if not ch:
+        return
+    base = dir3[u]
+    # 부모 방향에 수직인 두 축을 만든다
+    tmp = np.array([0.0, 0.0, 1.0]) if abs(base[2]) < 0.9 else np.array([1.0, 0.0, 0.0])
+    e1 = np.cross(base, tmp); e1 /= (np.linalg.norm(e1) + 1e-12)
+    e2 = np.cross(base, e1)
+    for m, v in enumerate(ch):
+        ang = 2.0 * math.pi * (m + 0.5) / len(ch) + depth_i * 0.7
+        rad = cone * (0.55 + 0.45 * ((m * 7) % 5) / 4.0)
+        d = base + (math.cos(ang) * e1 + math.sin(ang) * e2) * math.tan(rad)
+        d /= (np.linalg.norm(d) + 1e-12)
+        dir3[v] = d
+        spread3(v, cone * 0.72, depth_i + 1)
+
+# 장비 47대가 구 위에 있으면 평균 각거리는 sqrt(4pi/47) ~ 0.52 rad 이다.
+# 원뿔을 그 절반보다 작게 잡아 이웃 설비의 자식과 섞이지 않게 한다.
+for u in eq_idx:
+    spread3(u, 0.22)
+
+pos3 = np.zeros((len(ids), 3))
+for i in range(len(ids)):
+    d = dir3.get(i)
+    if d is None:                       # 트리에 닿지 않은 노드 (없어야 정상)
+        d = np.array([0.0, 1.0, 0.0])
+    pos3[i] = d * r_target[i]
+
+# ── 3차원 이완 ── 2D 와 같은 힘, 차원만 셋 ──
+for it in range(150):
+    d3 = pos3[:, None, :] - pos3[None, :, :]
+    dist2 = (d3 ** 2).sum(-1) + 1.0
+    inv2 = 1.0 / dist2
+    np.fill_diagonal(inv2, 0.0)
+    f3 = ((K_REP * inv2)[:, :, None] * d3).sum(axis=1)
+    dist = np.sqrt(dist2)
+    stretch = np.maximum(dist - L_EDGE, 0.0) * A
+    f3 -= K_ATT * ((stretch / dist)[:, :, None] * d3).sum(axis=1)
+    rn3 = np.sqrt((pos3 ** 2).sum(-1)) + 1e-9
+    f3 -= K_RAD * ((rn3 - r_target) * 6.0)[:, None] * (pos3 / rn3[:, None])
+    mag = np.sqrt((f3 ** 2).sum(-1))[:, None] + 1e-9
+    pos3 += f3 / mag * np.minimum(mag, min(9.0, 90.0 / (it + 9)))
+
+# 가장 바깥이 R_MAX 에 닿도록 되돌린다 (이완이 전체를 조금 부풀린다)
+rn3 = np.sqrt((pos3 ** 2).sum(-1))
+pos3 *= (R_MAX * 0.995 / rn3.max())
+
+rn3 = np.sqrt((pos3 ** 2).sum(-1))
+dd3 = np.sqrt(((pos3[:, None, :] - pos3[None, :, :]) ** 2).sum(-1))
+np.fill_diagonal(dd3, 1e9)
+print('3D  최근접 이웃  중앙 %.1f · 최소 %.1f · 8 미만 %d개'
+      % (float(np.median(dd3.min(axis=1))), float(dd3.min()),
+         int((dd3.min(axis=1) < 8).sum())))
+for t in ['eq', 'part', 'vOK', 'src']:
+    sel = [i for i, tt in enumerate(types) if tt == t]
+    if sel:
+        print('3D  %-5s 껍질 %3.0f~%3.0f (평균 %3.0f)'
+              % (t, rn3[sel].min(), rn3[sel].max(), rn3[sel].mean()))
+
 # 확산 뒤의 실제 각도로 갱신한다 — 렌더러가 회전과 라벨 방향에 이 값을 쓴다
 for i in range(len(ids)):
     ang[i] = math.atan2(pos[i, 1] - CY, pos[i, 0] - CX)
@@ -499,7 +581,11 @@ for i, k in enumerate(ids):
         'l': nd['l'],
         'x': round(float(pos[i, 0]), 1),
         'y': round(float(pos[i, 1]), 1),
-        'a': round(float(ang[i]), 4),          # 각도 — 렌더러가 라벨을 눕히는 데 쓴다
+        'a': round(float(ang[i]), 4),          # 2D 각도 — 라벨을 눕히는 데 쓴다
+        # 3D 좌표 — 화면에서 2D/3D 를 전환하므로 두 배치를 함께 싣는다
+        'X': round(float(pos3[i, 0]), 1),
+        'Y': round(float(pos3[i, 1]), 1),
+        'Z': round(float(pos3[i, 2]), 1),
         'd': int(degree[i]),
     })
 
