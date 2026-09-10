@@ -1,4 +1,4 @@
-/* HVAC Knowledge Platform — 화면 코드
+/* HVAC Knowledge System — 화면 코드
    ============================================================
    이 파일은 data.js 의 KB 객체 모양만 알고, 그 값이 어디서 왔는지는 모른다.
    나중에 SPARQL endpoint 나 API 로 바꿀 때 손댈 곳이 render 함수 안이 아니라
@@ -103,8 +103,8 @@
      정적 마크업은 CSS 가 한쪽을 감추므로 여기서는 속성만 뒤집고,
      JS 로 그린 영역만 다시 그린다. */
   var TITLES = {
-    ko: 'ONTOFLOW — HVAC Knowledge Platform · 온톨로지 기반 건물 지식 탐색',
-    en: 'ONTOFLOW — HVAC Knowledge Platform · Ontology-based Building Knowledge Explorer'
+    ko: 'ONTOFLOW — HVAC Knowledge System · 온톨로지 기반 건물 지식 탐색',
+    en: 'ONTOFLOW — HVAC Knowledge System · Ontology-based Building Knowledge Explorer'
   };
   (function () {
     var btn = el('langToggle');

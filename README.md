@@ -1,4 +1,4 @@
-# ONTOFLOW — HVAC Knowledge Platform
+# ONTOFLOW — HVAC Knowledge System
 
 온톨로지 기반 건물 지식 탐색 페이지. 2026년 제14회 HVAC 경진대회 §5 활용 사례용.
 
@@ -167,7 +167,7 @@ endpoint 나 API 응답으로 갈아끼울 수 있게 잡아 두었다 — `app.
 1920 × 1080 브라우저를 **전체화면(F11)** 으로 놓고 페이지 최상단에서 캡처한다.
 스크롤 없이 다음이 모두 잡힌다.
 
-- ONTOFLOW · HVAC Knowledge Platform · 부제
+- ONTOFLOW · HVAC Knowledge System · 부제
 - 세 메시지 (FROM DOCUMENTS TO KNOWLEDGE / VALUES TO EVIDENCE / SEARCH TO VALIDATION)
 - 규모 지표 6개 (55,791 · 15,983 · 4,081 · 949 · 948 · 493)
 - ZHUA01 근거 사슬 — 7,300 CMH `VERIFIED` → 7,249 CMH → 계산서 p.252
